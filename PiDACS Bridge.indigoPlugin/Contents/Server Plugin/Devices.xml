@@ -1,0 +1,102 @@
+<?xml version="1.0"?>
+<!-- rasPiIO devices.xml
+
+	 Insert comments here.
+
+-->
+
+<Devices>
+
+	<Device type="sensor" id="digitalInput">
+		<Name>Digital Input</Name>
+		<ConfigUI>
+            <Field id="srvAddr" type="textfield" defaultValue="raspi2b-ha.local">
+                <Label>Server address (FQDN or IPv4):</Label>
+            </Field>
+            <Field id="port" type="textfield" defaultValue="59438">
+				<Label>Port number (49152-65535):</Label>
+			</Field>
+			<Field id="channel" type="textfield" defaultValue="0">
+                <Label>IO channel number:</Label>
+            </Field>
+			<Field id="separator" type="separator">
+			</Field>
+			<Field id="polarity" type="menu"  defaultValue="Normal">
+				<Label>Logic polarity:</Label>
+					<List>
+						<Option value="Normal">Normal</Option>
+						<Option value="Inverted">Inverted</Option>
+					</List>
+			</Field>
+			<Field id="label1" type="label" >
+				<Label>							Normal: device state is set to "off" for
+							logic low at the physical input and to "on"
+							for logic high.
+							Inverted: device state is set to "on" for
+							logic low and to "off" for logic high.
+				</Label>
+			</Field>
+			<Field id="pullup" type="checkbox" defaultValue="false">
+				<Label>Enable internal pull-up resistor</Label>
+			</Field>
+			<Field id="label2" type="label" >
+				<Label>							Enabling the internal pull-up resistor will
+							"pull-up" an open physical input to logic
+							high.  Use this to toggle the input with a
+							"dry contact" switch or relay.
+				</Label>
+			</Field>
+			<Field id="turnOffDelay" type="textfield" defaultValue="0">
+                <Label>Turn-off delay (seconds):</Label>
+            </Field>
+			<Field id="label3" type="label" >
+				<Label>							Setting this value to n seconds delays
+							changing the device state from "on" to "off"
+							until n seconds after the last change from
+							"off" to "on".  Use this to limit reporting
+							from devices that rapidly change states
+							(e.g., wired motion sensors).</Label>
+			</Field>
+        </ConfigUI>
+	</Device>
+
+    <Device type="relay" id="digitalOutput">
+		<Name>Digital Output</Name>
+		<ConfigUI>
+            <Field id="srvAddr" type="textfield" defaultValue="raspi2b-ha.local">
+                <Label>Server address (FQDN or IPv4):</Label>
+            </Field>
+            <Field id="port" type="textfield" defaultValue="59438">
+				<Label>Port number (49152-65535):</Label>
+			</Field>
+			<Field id="channel" type="textfield" defaultValue="0">
+                <Label>IO channel number:</Label>
+            </Field>
+            <Field id="separator" type="separator">
+            </Field>
+			<Field id="momentaryTurnOn" type="checkbox" defaultValue="false">
+				<Label>Enable momentary turn-on</Label>
+			</Field>
+			<Field id="label1" type="label">
+				<Label>							Enabling momentary turn-on causes the
+							device state to be set to "on" and subse-
+							quently set to "off" whenever the device is
+							turned on.  The duration of the "on" state is
+							equal to the turn-off delay time entered
+							below.  Use this to trigger a relay for
+							"momentary contact", a feature needed to
+							cycle a conventional garage door opener.
+				</Label>
+			</Field>
+			<Field id="turnOffDelay" type="textfield" defaultValue="0">
+                <Label>Turn-off delay (seconds):</Label>
+            </Field>
+			<Field id="label2" type="label" >
+				<Label>							Specifying the default turn-off delay
+							(0 seconds) results in an actual delay of
+							about one-half of a second.</Label>
+			</Field>
+        </ConfigUI>
+	</Device>
+
+</Devices>
