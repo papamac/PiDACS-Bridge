@@ -7,77 +7,148 @@
 
 <Devices>
 
+	<Device type="custom" id="server">
+		<Name>Server</Name>
+		<ConfigUI>
+
+			<Field type="textfield" id="serverAddress"
+				   defaultValue="raspi3b-io.local">
+                <Label>Server Address (FQDN or IPv4):</Label>
+            </Field>
+
+			<Field type="textfield" id="portNumber" defaultValue="50000">
+				<Label>Port Number (49152-65535):</Label>
+			</Field>
+
+			<Field type="textfield" id="serverId" defaultValue="">
+				<Label>Server Id (User selected Id or blank):</Label>
+			</Field>
+
+			<Field type="label" id="label" fontSize="small"
+				   fontColor="darkgray" alignWithControl="true">
+				<Label>The Server Id is a unique name used in the indigo address for both server devices and
+I/O devices connected to a server.  It may be user selected or left blank for automatically assignment.
+Automatically assigned id's are taken from the Server Address if it has the form
+"server-id.domainName".  If not, a single letter is chosen randomly.</Label>
+			</Field>
+
+		</ConfigUI>
+
+		<UiDisplayStateId>status</UiDisplayStateId>
+		<States>
+
+			<State id="status">
+				<ValueType>String</ValueType>
+				<TriggerLabel>DACS state</TriggerLabel>
+                <ControlPageLabel>DACS state</ControlPageLabel>
+			</State>
+
+		</States>
+	</Device>
+
+
+
 	<Device type="sensor" id="digitalInput">
 		<Name>Digital Input</Name>
 		<ConfigUI>
-            <Field id="srvAddr" type="textfield" defaultValue="raspi2b-ha.local">
-                <Label>Server address (FQDN or IPv4):</Label>
-            </Field>
-            <Field id="port" type="textfield" defaultValue="59438">
-				<Label>Port number (49152-65535):</Label>
+
+			<Field type="menu" id="serverName">
+				<Label>PiDACS Server Name:</Label>
+				<List class="self" method="getServers"
+					  dynamicReload="yes"/>
 			</Field>
-			<Field id="channel" type="textfield" defaultValue="0">
-                <Label>IO channel number:</Label>
+
+
+			<Field type="textfield" id="channelName" defaultValue="gg17">
+                <Label>Channel Hardware Name:</Label>
             </Field>
-			<Field id="separator" type="separator">
-			</Field>
-			<Field id="polarity" type="menu"  defaultValue="Normal">
-				<Label>Logic polarity:</Label>
+
+			<Field type="separator" id="separator1"> </Field>
+
+			<Field type="menu" id="polarity"  defaultValue="0">
+				<Label>Logic Polarity:</Label>
 					<List>
-						<Option value="Normal">Normal</Option>
-						<Option value="Inverted">Inverted</Option>
+						<Option value="0">Normal</Option>
+						<Option value="1">Inverted</Option>
 					</List>
 			</Field>
-			<Field id="label1" type="label" >
-				<Label>							Normal: device state is set to "off" for
-							logic low at the physical input and to "on"
-							for logic high.
-							Inverted: device state is set to "on" for
-							logic low and to "off" for logic high.
+
+			<Field type="label" id="label1" fontSize="small"
+				   fontColor="darkgray" alignWithControl="true">
+				<Label>Normal: device state is set to "off" for logic low and to "on" for logic high.
+Inverted: device state is set to "on" for logic low and to "off" for logic high.</Label>
+			</Field>
+
+			<Field type="menu" id="pullup" defaultValue="0">
+				<Label>Internal Input Bias:</Label>
+					<List>
+						<Option value="0">Open (no bias)</Option>
+						<Option value="1">Pull up to logic high</Option>
+						<Option value="2">Pull down to logic low</Option>
+					</List>
+			</Field>
+
+			<Field type="label" id="label2" fontSize="small"
+				   fontColor="darkgray" alignWithControl="true">
+				<Label>Open applies no bias to the digital input.
+Pull up or down biases the input to logic high or low through an internal resistor.
+Pull down is only available for Raspberry Pi built-in GPIO channels (ggxx or gpxx).
+Use pull up to directly connect push butttons, relays, or dry-contact switches to an input channel.
 				</Label>
 			</Field>
-			<Field id="pullup" type="checkbox" defaultValue="false">
-				<Label>Enable internal pull-up resistor</Label>
+
+			<Field type="separator" id="separator2"> </Field>
+
+			<Field type="checkbox" id="change" defaultValue="false">
+			   <Label>Update on Change:</Label>
 			</Field>
-			<Field id="label2" type="label" >
-				<Label>							Enabling the internal pull-up resistor will
-							"pull-up" an open physical input to logic
-							high.  Use this to toggle the input with a
-							"dry contact" switch or relay.
+
+			<Field type="label" id="label3" fontSize="small"
+				   fontColor="darkgray" alignWithControl="true">
+				<Label>Update the channel state from the server whenever a
+					change occurs.
 				</Label>
 			</Field>
-			<Field id="turnOffDelay" type="textfield" defaultValue="0">
-                <Label>Turn-off delay (seconds):</Label>
-            </Field>
-			<Field id="label3" type="label" >
-				<Label>							Setting this value to n seconds delays
-							changing the device state from "on" to "off"
-							until n seconds after the last change from
-							"off" to "on".  Use this to limit reporting
-							from devices that rapidly change states
-							(e.g., wired motion sensors).</Label>
+
+			<Field type="checkbox" id="periodic" defaultValue="false">
+			   <Label>Update Periodically:</Label>
 			</Field>
-        </ConfigUI>
+
+			<Field type="label" id="label4" fontSize="small"
+				   fontColor="darkgray" alignWithControl="true">
+				<Label>Update the channel state on a regular periodic
+					basis.
+				</Label>
+			</Field>
+
+			<Field type="textfield" id="interval" defaultValue="60">
+				<Label>Periodic Update Interval (sec):</Label>
+			</Field>
+
+		</ConfigUI>
 	</Device>
 
     <Device type="relay" id="digitalOutput">
 		<Name>Digital Output</Name>
 		<ConfigUI>
-            <Field id="srvAddr" type="textfield" defaultValue="raspi2b-ha.local">
-                <Label>Server address (FQDN or IPv4):</Label>
-            </Field>
-            <Field id="port" type="textfield" defaultValue="59438">
-				<Label>Port number (49152-65535):</Label>
+
+			<Field type="menu" id="serverName">
+				<Label>PiDACS server name:</Label>
+				<List class="self" method="getServers"
+					  dynamicReload="yes"/>
 			</Field>
-			<Field id="channel" type="textfield" defaultValue="0">
-                <Label>IO channel number:</Label>
+
+			<Field type="textfield" id="channelName" defaultValue="gg05">
+                <Label>Channel hardware name:</Label>
             </Field>
-            <Field id="separator" type="separator">
-            </Field>
-			<Field id="momentaryTurnOn" type="checkbox" defaultValue="false">
-				<Label>Enable momentary turn-on</Label>
+
+            <Field type="separator" id="separator1"> </Field>
+
+			<Field type="checkbox" id="momentary" defaultValue="false">
+				<Label>Momentary turn-on:</Label>
 			</Field>
-			<Field id="label1" type="label">
+
+			<Field type="label" id="label1">
 				<Label>							Enabling momentary turn-on causes the
 							device state to be set to "on" and subse-
 							quently set to "off" whenever the device is
@@ -88,14 +159,45 @@
 							cycle a conventional garage door opener.
 				</Label>
 			</Field>
-			<Field id="turnOffDelay" type="textfield" defaultValue="0">
-                <Label>Turn-off delay (seconds):</Label>
+
+			<Field type="textfield" id="turnOffDelay" defaultValue="0">
+                <Label>Turn-off Delay (seconds):</Label>
             </Field>
-			<Field id="label2" type="label" >
+
+			<Field type="label" id="label2">
 				<Label>							Specifying the default turn-off delay
 							(0 seconds) results in an actual delay of
 							about one-half of a second.</Label>
 			</Field>
+
+			<Field type="separator" id="separator2"> </Field>
+
+			<Field type="checkbox" id="change" defaultValue="false">
+			   <Label>Update on Change:</Label>
+			</Field>
+
+			<Field type="label" id="label3" fontSize="small"
+				   fontColor="darkgray" alignWithControl="true">
+				<Label>Update the channel state from the server whenever a
+					change occurs.
+				</Label>
+			</Field>
+
+			<Field type="checkbox" id="periodic" defaultValue="false">
+			   <Label>Update Periodically:</Label>
+			</Field>
+
+			<Field type="label" id="label4" fontSize="small"
+				   fontColor="darkgray" alignWithControl="true">
+				<Label>Update the channel state from the server periodically
+					at the specified interval (seconds).
+				</Label>
+			</Field>
+
+			<Field type="textfield" id="interval" defaultValue="60">
+				<Label>Periodic Update Interval (sec):</Label>
+			</Field>
+
         </ConfigUI>
 	</Device>
 

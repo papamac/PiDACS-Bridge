@@ -43,19 +43,19 @@ TEXT_LENGTH = MESSAGE_LENGTH - DATETIME_LENGTH - 3  # Length of text message
 
 # PiDACS socket/server constants:
 
-SOCKET_TIMEOUT = 0.5          # Timeout limit for socket connection, recv, and
-#                               send methoda (sec).
-LATENCY_LIMIT = 1.0           # Limit on network latency for all server to
+SOCKET_TIMEOUT = 0.75          # Timeout limit for socket connection, recv, and
+#                               send methods (sec).
+LATENCY = 1.0                 # Limit on network latency for all server to
 #                               client messages (sec).  Exceeding the latency
 #                               limit is reported for user awareness, but does
 #                               nor otherwise effect rpio processing.
-SERVER_TIMEOUT_LIMIT = 610.0  # Timeout limit for server keep-alive or other
+SERVER_TIMEOUT = 610.0        # Timeout limit for server keep-alive or other
 #                               data messages (sec).  Must be comfortably
 #                               longer than the IOMGR STATUS_INTERVAL (600 sec)
 #                               to allow time for network delays.
-DEFAULT_SRV_ADDR = 'raspi3bp-ha.local'    # papamac's favorite server.
+DEFAULT_ADDRESS = 'raspi3bp-ha.local'     # papamac's favorite server.
 DYNAMIC_PORT_RANGE = range(49152, 65535)  # Range of valid dynamic ports.
-DEFAULT_PORT_NUMBER = 59438   # Arbitrary selection from DYNAMIC_PORT_RANGE.
+DEFAULT_PORT_NUMBER = 50000   # Arbitrary selection from DYNAMIC_PORT_RANGE.
 
 
 # PiDACS exceptions:
@@ -80,7 +80,7 @@ def recv_msg(thread, sock, dt_recvd=None):
             if dt_recvd:
                 secs_since_last_msg = (datetime.now()
                                        - dt_recvd).total_seconds()
-                if secs_since_last_msg > SERVER_TIMEOUT_LIMIT:
+                if secs_since_last_msg > SERVER_TIMEOUT:
                     raise ServerTimeout
             continue
         if not segment:

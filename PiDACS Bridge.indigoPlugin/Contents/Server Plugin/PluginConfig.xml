@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<PluginConfig>
+
+    <Field type="label" id="title" alignText="center" fontColor="blue">
+        <Label>Operating Settings</Label>
+    </Field>
+
+    <Field type="checkbox" id="logStateChanges" defaultValue="false">
+        <Label>Log State Changes on Unassigned Devices:</Label>
+    </Field>
+
+    <Field type="checkbox" id="restartClear" defaultValue="false">
+        <Label>Clear Digital Output Devices on Restart:</Label>
+    </Field>
+
+    <Field type="menu" id="loggingLevel" defaultValue="INFO">
+        <Label>Logging Level:</Label>
+        <List>
+            <Option value="5">Thread Debug</Option>
+            <Option value="DEBUG">Debug</Option>
+            <Option value="INFO">Info</Option>
+            <Option value="WARNING">Warning</Option>
+            <Option value="ERROR">Error</Option>
+            <Option value="CRITICAL">Critical</Option>
+        </List>
+    </Field>
+
+    <Field type="label" id="thread" alignWithControl="true"
+           fontColor="darkgray"
+           visibleBindingId="loggingLevel" visibleBindingValue="5">
+        <Label>Log method calls and higher</Label>
+    </Field>
+
+    <Field type="label" id="debug" alignWithControl="true" fontColor="darkgray"
+           visibleBindingId="loggingLevel" visibleBindingValue="DEBUG">
+        <Label>Log debug messages and higher</Label>
+    </Field>
+
+    <Field type="label" id="info" alignWithControl="true" fontColor="darkgray"
+           visibleBindingId="loggingLevel" visibleBindingValue="INFO">
+        <Label>Log operating messages and higher</Label>
+    </Field>
+
+    <Field type="label" id="warning" alignWithControl="true"
+           fontColor="darkgray"
+           visibleBindingId="loggingLevel" visibleBindingValue="WARNING">
+        <Label>Log warning messages and higher</Label>
+    </Field>
+
+    <Field type="label" id="error" alignWithControl="true" fontColor="darkgray"
+           visibleBindingId="loggingLevel" visibleBindingValue="ERROR">
+        <Label>Log error and critical messages only</Label>
+    </Field>
+
+    <Field type="label" id="critical" alignWithControl="true"
+           fontColor="darkgray"
+           visibleBindingId="loggingLevel" visibleBindingValue="CRITICAL">
+        <Label>Log critical messages only</Label>
+    </Field>
+
+</PluginConfig>

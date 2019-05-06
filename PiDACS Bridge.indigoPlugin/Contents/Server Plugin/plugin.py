@@ -1,218 +1,161 @@
 #! /usr/bin/env python
 
 import indigo
+from logging import NOTSET, DEBUG, INFO, WARNING, ERROR, CRITICAL
+from random import choice
 from threading import Thread
-from time import sleep
 
 from pidacs_global import *
 
+LOG = None
+PLUGIN = None
 
-###############################################################################
 
-class Server(Thread):
+class PiDACS(Thread):
 
     # Class attributes:
 
-    nextSrvNum = 0
-    plugin = None
-    servers = None
+    servers = {}
 
-    # Class methods:
+    @classmethod
+    def setErrorState(cls, serverName, err=True):
+        srvDev = indigo.devices.get(serverName)
+        srvState = u'Error' if err else None
+        clientState = u'Server' if err else None
+        if srvDev:
+            srvDev.setErrorStateOnServer(srvState)
+        for dev in indigo.devices.iter(u'self'):
+            name = dev.pluginProps.get(u'serverName')
+            if name == serverName:
+                dev.setErrorStateOnServer(clientState)
 
-    @staticmethod
-    def initializeServers(plugin):
-        maxSrvNum = Server.nextSrvNum - 1
-        for dev in indigo.devices.iter('self'):
-            srvNum = int(dev.pluginProps[u'address'].split(u'.')[0])
-            if srvNum > maxSrvNum:
-                maxSrvNum = srvNum
-        Server.nextSrvNum = maxSrvNum + 1
-        Server.plugin = plugin
-        Server.servers = {}
+    # Instance methods:
 
-    @staticmethod
-    def displayChannelAssignments():
-        for sockId in Server.servers:
-            srv = Server.servers[sockId]
-            chans = []
-            for devId in srv.devices:
-                dev = indigo.devices[devId]
-                channel = dev.pluginProps[u'channel']
-                chans.append(channel)
-            srvAddr = u'"%s"' % srv.srvAddr
-            Server.plugin.debugLog(u'assigned %-21s srv %d: %s'
-                % (srvAddr, srv.srvNum, sorted(chans)))
-
-    @staticmethod
-    def getServer(dev=None, srvAddr=None, sockId=None,):
-        if dev:
-            srvAddr = dev.pluginProps[u'srvAddr']
-            sockId = dev.pluginProps[u'sockId']
-        if sockId in Server.servers:
-            return Server.servers[sockId]
-        else:
-            if dev:
-                srvNum = int(dev.pluginProps[u'address'].split(u'.')[0])
-            else:
-                srvNum = Server.nextSrvNum
-                Server.nextSrvNum += 1
-            srv = Server.servers[sockId] = Server(srvAddr, sockId, srvNum)
-            return srv
-
-    # Private instance methods:
-
-    def __init__(self, srvAddr, sockId, srvNum):
-        self.srvAddr = srvAddr
-        self.sockId = sockId
-        self.srvNum = srvNum
-        self.sock = None
-        self.dtRecvd = None
-        self.devices = []
+    def __init__(self, serverName):
+        self._socketId = None
+        self._socket = None
+        self._dtRecvd = None
         self.running = False
-        Thread.__init__(self, name='rasPiIOPluginServer',
-                        target=self._processServerData)
-
-    def _disableServerDevices(self, errMsg):
-        indigo.server.log(errMsg, isError=True)
-        indigo.server.log(u'disabling all devices "%s"'
-                          % self.srvAddr, isError=True)
-        for devId in self.devices:
-            indigo.device.enable(devId, value=False)
-            dev = indigo.devices[devId]
-            indigo.server.log('disabled "%s"' % dev.name, isError=True)
-        indigo.variable.updateValue(u'serverShutDown', value=self.srvAddr)
-        sleep(0.5)
-        indigo.variable.updateValue(u'serverShutDown', value=u'None')
-        return
-
-    def _processServerData(self):
-        self.plugin.debugLog(u'_processServerData started "%s" %d'
-                             % (self.srvAddr, self.ident))
-        while self.running:
-            try:
-                data = recv_msg(self, self.sock, self.dtRecvd)
-                if not self.running:
-                    continue
-            except OSError as errMsg:
-                errMsg = 'recv error "%s" %s' % (self.srvAddr, errMsg)
-                break
-            except BrokenPipe:
-                errMsg = 'server disconnected "%s"' % self.srvAddr
-                break
-            except ServerTimeout:
-                errMsg = 'server timeout "%s"' % self.srvAddr
-                break
-            self.dtRecvd = datetime.now()
-            sAddr = u'"%s"' % self.srvAddr
-            self.plugin.debugLog(u'received %-21s %s' % (sAddr, data))
-            try:
-                dtSent = datetime.strptime(data[:26],
-                                           '%Y-%m-%d %H:%M:%S.%f')
-            except ValueError:
-                errMsg = u'invalid datetime in data record "%s"'\
-                          % self.srvAddr
-                indigo.server.log(errMsg, isError=True)
-                continue
-            latency = (self.dtRecvd - dtSent).total_seconds()
-            if latency > LATENCY_LIMIT:
-                indigo.server.log(u'late data "%s" %5.3f' % (self.srvAddr,
-                                  latency), isError=True)
-            indigo.server.log(data)
-            dataList = data[26:].split()
-            dataId = dataList[0]
-            if dataId in (u'change:', u'value:'):
-                channel = dataList[1]
-                valueStr = dataList[2]
-                value = (float(valueStr) if u'.' in valueStr else
-                         int(valueStr))
-                for devId in self.devices:
-                    dev = indigo.devices[devId]
-                    chan = dev.pluginProps[u'channel']
-                    if chan == channel:
-                        if dev.enabled and dev.configured:
-                            state = u'on' if value else u'off'
-                            dev.updateStateOnServer('onOffState', state)
-                            dev.updateStateImageOnServer(
-                                indigo.kStateImageSel.Auto)
-                            indigo.server.log(u'received "%s" update to '
-                                              u'"%s"' % (dev.name, state))
-                            break
-                else:
-                    if dataId != u'v':
-                        indigo.server.log(
-                            u'received "%s" state change on unassigned '
-                            u'channel %s' % (self.srvAddr, channel),
-                            isError=True)
-        else:
-            self.plugin.debugLog(u'_processServerData ended normally "%s" %d'
-                                 % (self.srvAddr, self.ident))
-            return
-        self._disableServerDevices(errMsg)
-        self.plugin.debugLog(
-            u'_processServerData ended with errors "%s" %d'
-            % (self.srvAddr, self.ident))
-
-    # Public instance methods:
+        Thread.__init__(self, name=serverName,
+                        target=self._processServerMessages)
 
     def start(self):
-        self.sock = socket(AF_INET, SOCK_STREAM)
-        self.sock.settimeout(1.0)
-        srvIPv4, port = self.sockId.split(u':')
+
+        # Attempt connection to server.
+
+        self._socket = socket(AF_INET, SOCK_STREAM)
+        self._socket.settimeout(SOCKET_TIMEOUT)
+        srvDev = indigo.devices[self.name]
+        ipv4, portNumber = srvDev.pluginProps[u'socketId'].split(u':')
         try:
-            self.sock.connect((srvIPv4, int(port)))
-        except error as errMsg:
-            indigo.server.log(u'connection error "%s" %s'
-                              % (self.srvAddr, unicode(errMsg)), isError=True)
-            return False
-        indigo.server.log(u'connected "%s" via socket "%s"' % (self.srvAddr,
-                                                               self.sockId))
-        self.dtRecvd = datetime.now()
+            self._socket.connect((ipv4, int(portNumber)))
+        except error as err:
+
+            # Connection failed; set errors state on all devices.
+
+            LOG.error(u'connection error "%s" %s' % (self.name, err))
+            self.setErrorState(self.name)
+            return
+
+        self._socketId = u'%s:%i' % self._socket.getsockname()
+        LOG.info(u'connected "%s" via socket "%s"'
+                 % (self.name, self._socketId))
+
+        # Connection succeeded; complete server startup.
+
         self.running = True
+        self._dtRecvd = datetime.now()
         Thread.start(self)
-        return True
-
+        self.servers[self.name] = self
+        srvDev.updateStateOnServer(key=u'status', value=u'Running')
+        self.setErrorState(self.name, False)
+        LOG.debug(u'server "%s" started' % self.name)
+            
     def stop(self):
-        if self.sock is not None:
-            self.sock.close()
-            indigo.server.log(u'closed "%s"' % self.sockId)
+        self._socket.close()
+        LOG.info(u'closed "%s"' % self._socketId)
         self.running = False
-        del self.servers[self.sockId]
+        del (self.servers[self.name])
+        srvDev = indigo.devices.get(self.name)
+        if srvDev:
+            srvDev.updateStateOnServer(key=u'status', value=u'Stopped')
+        LOG.debug(u'server "%s" stopped' % self.name)
 
-    def assignDevice(self, dev):
-        self.devices.append(dev.id)
-
-    def removeDevice(self, dev):
-        if dev.id in self.devices:
-            self.devices.remove(dev.id)
-            if not self.devices:
-                self.stop()
-
-    def channelIsAssigned(self, channel):
-        assigned = False
-        for devId in self.devices:
-            dev = indigo.devices[devId]
-            if channel == dev.pluginProps[u'channel']:
-                assigned = True
+    def _processServerMessages(self):
+        LOG.log(5, u'thread "%s" started' % self.name)
+        while self.running:
+            try:
+                message = recv_msg(self, self._socket, self._dtRecvd)
+                if not self.running:
+                    continue
+            except OSError as err:
+                errMsg = 'recv error "%s" %s' % (self.name, err)
                 break
-        return assigned
+            except BrokenPipe:
+                errMsg = 'server disconnected "%s"' % self.name
+                break
+            except ServerTimeout:
+                errMsg = 'server timeout "%s"' % self.name
+                break
+
+            self._dtRecvd = datetime.now()
+            name = u'"%s"' % self.name
+            LOG.debug(u'received %-21s %s' % (name, message))
+            try:
+                dtSent = datetime.strptime(message[:26],
+                                           '%Y-%m-%d %H:%M:%S.%f')
+            except ValueError:
+                LOG.warn(u'invalid datetime in message "%s"' % self.name)
+                continue
+            latency = (self._dtRecvd - dtSent).total_seconds()
+            if latency > LATENCY:
+                LOG.warn(u'late message "%s" %3.1f' % (self.name, latency))
+            messageList = message[26:].split()
+            messageId = messageList[0]
+            if messageId in (u'change:', u'value:'):
+                devName = messageList[1].split(u'|')[0]
+                valueStr = messageList[2]
+                value = float(valueStr) if u'.' in valueStr else int(valueStr)
+                dev = indigo.devices.get(devName)
+                if dev:
+                    if dev.enabled:
+                        state = u'on' if value else u'off'
+                        dev.updateStateOnServer('onOffState', state)
+                        dev.updateStateImageOnServer(
+                                indigo.kStateImageSel.Auto)
+                        LOG.info(u'received "%s" update to "%s"'
+                                 % (dev.name, state))
+                else:
+                    if PLUGIN.pluginPrefs[u'logStateChanges']:
+                        LOG.warn(u'received "%s" state change on unassigned '
+                                 u'device %s' % (self.name, devName))
+        else:
+            LOG.log(5, u'thread "%s" ended normally' % self.name)
+            return
+
+        LOG.error(errMsg)
+        self.stop()
+        self.setErrorState(self.name)
+        LOG.log(5, u'thread "%s" ended with errors' % self.name)
 
     def sendRequest(self, *args):
-        req = unicode(datetime.now())
-        for arg in args:
-            req = req + u' ' + unicode(arg)
-        try:
-            send_msg(self.sock, req)
-        except OSError as errMsg:
-            errMsg = 'recv error "%s" %s' % (self.srvAddr, errMsg)
-        except BrokenPipe:
-            errMsg = 'broken pipe to server "%s"' % self.srvAddr
-        else:
-            return
-        self._disableServerDevices(errMsg)
+        if self.running:
+            req = unicode(datetime.now())
+            for arg in args:
+                req = req + u' ' + unicode(arg)
+            try:
+                send_msg(self._socket, req)
+            except OSError as err:
+                errMsg = 'send error "%s" %s' % (self.name, err)
+            except BrokenPipe:
+                errMsg = 'broken pipe to server "%s"' % self.name
+            else:
+                return
 
+            LOG.error(errMsg)
+            self.stop()
+            self.setErrorState(self.name)
 
-
-###############################################################################
 
 class Plugin(indigo.PluginBase):
 
@@ -222,107 +165,154 @@ class Plugin(indigo.PluginBase):
                  pluginVersion, pluginPrefs):
         super(Plugin, self).__init__(pluginId, pluginDisplayName,
                                      pluginVersion, pluginPrefs)
-        self.debug = False
+        self.indigo_log_handler.setLevel(NOTSET)
+        level = eval(pluginPrefs.get(u'loggingLevel', u'5'))
+        global LOG, PLUGIN
+        LOG = self.logger
+        LOG.setLevel(level)
+        PLUGIN = self
+        LOG.debug(pluginPrefs)
 
     def startup(self):
-        self.debugLog(u'startup called')
-        Server.initializeServers(self)
+        LOG.debug(u'startup called')
 
     def shutdown(self):
-        self.debugLog(u'shutdown called')
+        LOG.debug(u'shutdown called')
 
     def validateDeviceConfigUi(self, valuesDict, typeId, devId):
         dev = indigo.devices[devId]
-        self.debugLog(u'validateDeviceConf called for "%s"' % dev.name)
-        self.debugLog(u'dev.configured = %s' % str(dev.configured))
-        errorsDict = indigo.Dict()
-        srvAddr = valuesDict[u'srvAddr']
-        try:
-            srvIPv4 = gethostbyname(srvAddr)
-        except error as errMsg:
-            errorsDict[u'srvAddr'] = (u'address resolution error: '
-                                      + unicode(errMsg))
-        if not valuesDict[u'port'].isdigit():
-            errorsDict[u'port'] = u'Port number is not an unsigned interger'
+        LOG.debug(u'validateDeviceConf called for "%s"' % dev.name)
+        LOG.debug(u'dev.configured = %s' % dev.configured)
+        values = valuesDict
+        errors = indigo.Dict()
+
+        if typeId == 'server':
+            serverAddress = valuesDict[u'serverAddress']
+            ipv4 = ''
+            try:
+                ipv4 = gethostbyname(serverAddress)
+            except gaierror as err:
+                errors[u'serverAddress'] = (u'Address resolution error: %s'
+                                            % err)
+            portNumber = valuesDict[u'portNumber']
+            if portNumber.isnumeric():
+                portNumber = int(portNumber)
+                if portNumber not in DYNAMIC_PORT_RANGE:
+                    errors[u'portNumber'] = (u'Port number not in dynamic '
+                                             u'port range.')
+            else:
+                errors[u'portNumber'] = u'Port number is not an integer.'
+            values[u'socketId'] = u'%s:%s' % (ipv4, portNumber)
+            serverId = valuesDict[u'serverId']
+            if not serverId:
+                split1 = serverAddress.split(u'.', 1)
+                split2 = split1[0].split(u'-')
+                if len(split2) > 1:
+                    serverId = split2[1]
+                else:
+                    serverId = chr(choice(range(97, 123)))
+            for srvDev in indigo.devices.iter(u'self.server'):
+                if srvDev.id == devId:
+                    continue
+                if srvDev.pluginProps[u'serverId'] == serverId:
+                    errors[u'serverId'] = (u'Server Id already in use; '
+                                           u'choose again')
+                    break
+            values[u'serverId'] = serverId
+            values[u'address'] = serverId
+
         else:
-            port = int(valuesDict[u'port'])
-            if not (49152 <= port <= 65535):
-                errorsDict[u'port'] = (u'Port number is not in dynamic '
-                                       + 'port range')
-        if len(valuesDict[u'channel']) != 4:
-            errorsDict[u'channel'] = (u'Channel Id is not an '
-                                      + 'unsigned interger')
+            serverName = valuesDict[u'serverName']
+            srvDev = indigo.devices[serverName]
+            serverId = srvDev.pluginProps[u'serverId']
+            channelName = valuesDict[u'channelName']
+            goodName = (len(channelName) == 4
+                        and channelName[:2] in ('ga', 'gb', 'gg', 'gp')
+                        and channelName[2:].isnumeric())
+            if not goodName:
+                errors[u'channelName'] = u'Invalid channel name'
+            values[u'address'] = u'%s.%s' % (serverId, channelName)
+            if typeId == u'digitalOutput':
+                delay = valuesDict[u'turnOffDelay']
+                if not delay.replace(u'.', u'').isnumeric():
+                    errors[u'turnOffDelay'] = (u'Turn-off delay is not a '
+                                               u'number')
+
+        if errors:
+            return False, valuesDict, errors
         else:
-            channel = valuesDict[u'channel']
-        if not valuesDict[u'turnOffDelay'].isdigit():
-            errorsDict[u'turnOffDelay'] = (u'Turn-off delay is not an '
-                                           +'unsigned integer')
-        if errorsDict:
-            return False, valuesDict, errorsDict
+            return True, values
 
-        sockId = u'%s:%d' % (srvIPv4, port)
-        srv = Server.getServer(srvAddr=srvAddr, sockId=sockId)
+    def getServers(self, filter="", valuesDict=None, typeId="", targetId=0):
+        LOG.debug(u'called getServers')
+        servers = []
+        for dev in indigo.devices.iter(u'self.server'):
+            servers.append(dev.name)
+        return sorted(servers)
 
-        if srv.channelIsAssigned(channel):
-            dev = indigo.devices[devId]
-            if channel != dev.pluginProps.get(u'channel', -1):
-                errorsDict = indigo.Dict()
-                errorsDict[u'channel'] = (u'Channel Id is already '
-                                          + 'assigned')
-                return False, valuesDict, errorsDict
-
-        address = u'%s.%s' % (srv.srvNum, channel)
-
-        vDict = valuesDict
-        vDict[u'address'] = address
-        vDict[u'sockId'] = sockId
-        return True, vDict
+    def didDeviceCommPropertyChange(self, dev, newDev):
+        LOG.debug(u'didDeviceCommPropertyChange called: old = "%s", new = "%s"'
+                  % (dev.name, newDev.name))
+        change = (dev.name != newDev.name
+                  or dev.deviceTypeId != newDev.deviceTypeId
+                  or dev.pluginProps != newDev.pluginProps)
+        LOG.debug(u'change = %s' % change)
+        return change
 
     def deviceStartComm(self, dev):
         self.debugLog(u'devicesStartComm called for "%s"' % dev.name)
-        dev.subModel = u'rasPiIO'
-        dev.replaceOnServer()
-        srv = Server.getServer(dev)
-        channel = dev.pluginProps[u'channel']
-        if srv.channelIsAssigned(channel):
-            self.debugLog(u'duplicate channel "%s" device deconfigured'
-                          % dev.name)
-            dev.configured = False
+        if dev.subModel != u'PiDACS':
+            dev.subModel = u'PiDACS'
             dev.replaceOnServer()
-            newProps = dev.pluginProps
-            del newProps[u'address']
-            del newProps[u'channel']
-            dev.replacePluginPropsOnServer(newProps)
-            indigo.PluginBase.deviceStartComm(self, dev)
-            return
-
-        srv.assignDevice(dev)
-        Server.displayChannelAssignments()
-
-        if not srv.running:
-            if not srv.start():
-                indigo.device.enable(dev.id, value=False)
-                indigo.server.log(u'disabled "%s"' % dev.name, isError=True)
-                indigo.PluginBase.deviceStartComm(self, dev)
-                return
-
-        if dev.deviceTypeId == u'digitalInput':
-            direction = 1
-            polarity = 1 if dev.pluginProps[u'polarity'] == u'Inverted' else 0
-            pullup = 1 if dev.pluginProps[u'pullup'] else 0
+        if u' ' in dev.name:
+            LOG.warn(u'startup for device "%s" deferred until final device '
+                     u'name (no spaces) is specified' % dev.name)
         else:
-            direction = polarity = pullup = 0
-        srv.sendRequest(channel, 'direction', direction)
-        srv.sendRequest(channel, 'polarity', polarity)
-        srv.sendRequest(channel, 'pullup', pullup)
-        indigo.PluginBase.deviceStartComm(self, dev)
+            typeId = dev.deviceTypeId
+            if typeId == u'server':
+                if dev.name in PiDACS.servers:
+                    LOG.critical(u'server "%s" already in servers dictionary'
+                                 % dev.name)
+                server = PiDACS(dev.name)
+                server.start()
+                if server.running:
+                    for ioDev in indigo.devices.iter(u'self'):
+                        if (ioDev.enabled and ioDev.deviceTypeId != u'server'
+                                and ioDev.pluginProps[u'serverName']
+                                == dev.name):
+                            self.deviceStartComm(ioDev)
+            else:
+                serverName = dev.pluginProps[u'serverName']
+                server = PiDACS.servers.get(serverName)
+                if server and server.running:
+                    if typeId == u'digitalInput':
+                        direction = u'1'
+                        polarity = dev.pluginProps[u'polarity']
+                        pullup = dev.pluginProps[u'pullup']
+                    else:  # deviceTypeId == u'digitalOutput'
+                        direction = polarity = pullup = u'0'
+
+                    channelName = dev.pluginProps[u'channelName']
+                    server.sendRequest(channelName, u'alias', dev.name)
+                    server.sendRequest(dev.name, u'direction', direction)
+                    server.sendRequest(dev.name, u'polarity', polarity)
+                    server.sendRequest(dev.name, u'pullup', pullup)
+                    server.sendRequest(dev.name, u'read')
+                    if (typeId == u'digitalOutput'
+                            and self.pluginPrefs[u'restartClear']):
+                        server.sendRequest(dev.name, u'write', '0')
+                    if dev.pluginProps[u'change']:
+                        server.sendRequest(dev.name, u'change', '1')
+                    if dev.pluginProps[u'periodic']:
+                        interval = dev.pluginProps[u'interval']
+                        server.sendRequest(dev.name, u'interval', interval)
 
     def deviceStopComm(self, dev):
-        self.debugLog(u'devicesStopComm called for "%s"' % dev.name)
-        srv = Server.getServer(dev)
-        srv.removeDevice(dev)
-        Server.displayChannelAssignments()
-        indigo.PluginBase.deviceStopComm(self, dev)
+        LOG.debug(u'devicesStopComm called for "%s"' % dev.name)
+        if dev.deviceTypeId == u'server':
+            server = PiDACS.servers.get(dev.name)
+            if server:
+                server.stop()
 
     def actionControlDevice(self, action, dev):
         if action.deviceAction == indigo.kDeviceAction.TurnOn:
@@ -336,19 +326,27 @@ class Plugin(indigo.PluginBase):
             action = u'"toggle"'
         else:
             return
-        srv = Server.getServer(dev)
-        channel = dev.pluginProps[u'channel']
-        srv.sendRequest(channel, 'write', value)
-        indigo.server.log(u'sent "%s" %s' % (dev.name, action))
-        if value and dev.pluginProps[u'momentaryTurnOn']:
-            delay = int(dev.pluginProps[u'turnOffDelay'])
-            if not delay:
-                sleep(0.5)
-            indigo.device.turnOff(dev.id, delay=delay)
+
+        serverName = dev.pluginProps[u'serverName']
+        server = PiDACS.servers.get(serverName)
+        if server and server.running:
+            requestId = 'write'
+            if value and dev.pluginProps[u'momentary']:
+                value = dev.pluginProps[u'turnOffDelay']
+                requestId = 'momentary'
+            server.sendRequest(dev.name, requestId, value)
+            LOG.info(u'sent "%s" %s' % (dev.name, action))
+        else:
+            LOG.error(u'server "%s" not running; "%s" %s request ignored'
+                      % (serverName, dev.name, action))
 
     def actionControlUniversal(self, action, dev):
         if action.deviceAction == indigo.kUniversalAction.RequestStatus:
-            srv = Server.getServer(dev)
-            channel = dev.pluginProps[u'channel']
-            srv.sendRequest(channel, 'read')
-            indigo.server.log(u'sent "%s" status request' % dev.name)
+            serverName = dev.pluginProps[u'serverName']
+            server = PiDACS.servers.get(serverName)
+            if server and server.running:
+                server.sendRequest(dev.name, 'read')
+                LOG.info(u'sent "%s" status request' % dev.name)
+            else:
+                LOG.error(u'server "%s" not running; "%s" status request '
+                          u'ignored' % (serverName, dev.name))
