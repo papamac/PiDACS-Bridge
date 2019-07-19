@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- rasPiIO devices.xml
+<!-- PiDACS devices.xml
 
 	 Insert comments here.
 
@@ -7,198 +7,299 @@
 
 <Devices>
 
-	<Device type="custom" id="server">
-		<Name>Server</Name>
-		<ConfigUI>
+    <!-- ######################### Server Device  ######################### -->
 
-			<Field type="textfield" id="serverAddress"
-				   defaultValue="raspi3b-io.local">
+    <Device id="server" type="custom">
+        <Name>Server</Name>
+        <ConfigUI>
+
+            <Field id="subModel" type="textfield" hidden="true"
+                   defaultValue="PiDACS">
+            </Field>
+
+            <Field id="serverAddress" type="textfield"
+                   defaultValue="raspi3b-io.local">
                 <Label>Server Address (FQDN or IPv4):</Label>
             </Field>
 
-			<Field type="textfield" id="portNumber" defaultValue="50000">
-				<Label>Port Number (49152-65535):</Label>
-			</Field>
+            <Field id="portNumber" type="textfield" defaultValue="50000">
+                <Label>Port Number (49152-65535):</Label>
+            </Field>
 
-			<Field type="textfield" id="serverId" defaultValue="">
-				<Label>Server Id (User selected Id or blank):</Label>
-			</Field>
+            <Field id="serverId" type="textfield" defaultValue="">
+                <Label>Server Id (User selected Id or blank):</Label>
+            </Field>
 
-			<Field type="label" id="label" fontSize="small"
-				   fontColor="darkgray" alignWithControl="true">
-				<Label>The Server Id is a unique name used in the indigo address for both server devices and
-I/O devices connected to a server.  It may be user selected or left blank for automatically assignment.
-Automatically assigned id's are taken from the Server Address if it has the form
-"server-id.domainName".  If not, a single letter is chosen randomly.</Label>
-			</Field>
+            <Field id="label" type="label" fontSize="small"
+                   fontColor="darkgray" alignWithControl="true">
+                <Label>The Server Id is a unique name used in the indigo address for both server devices and I/O devices connected to a server.  It may be user selected or left blank for automatically assignment. Automatically assigned id's are taken from the Server Address if it has the form "server-id.domainName".  If not, a single letter is chosen randomly.</Label>
+            </Field>
 
-		</ConfigUI>
+        </ConfigUI>
 
-		<UiDisplayStateId>status</UiDisplayStateId>
-		<States>
+        <UiDisplayStateId>status</UiDisplayStateId>
+        <States>
 
-			<State id="status">
-				<ValueType>String</ValueType>
-				<TriggerLabel>DACS state</TriggerLabel>
-                <ControlPageLabel>DACS state</ControlPageLabel>
-			</State>
+            <State id="status">
+                <ValueType>String</ValueType>
+                <TriggerLabel>Server Status</TriggerLabel>
+                <ControlPageLabel>Server Status</ControlPageLabel>
+            </State>
 
-		</States>
-	</Device>
+        </States>
+    </Device>
+
+    <!-- ###################### Analog Input Device  ###################### -->
+
+    <Device id="analogInput" type="sensor">
+        <Name>Analog Input</Name>
+        <ConfigUI>
+
+            <Field id="subModel" type="textfield" hidden="true"
+                   defaultValue="PiDACS">
+            </Field>
+
+            <Field id="SupportsOnState" type="checkbox" hidden="true"
+                   defaultValue="false">
+            </Field>
+
+            <Field id="SupportsSensorValue" type="checkbox" hidden="true"
+                   defaultValue="true">
+            </Field>
+
+            <Field id="serverName" type="menu">
+                <Label>PiDACS Server Name:</Label>
+                <List class="self" method="getServers"
+                      dynamicReload="yes"/>
+            </Field>
 
 
-
-	<Device type="sensor" id="digitalInput">
-		<Name>Digital Input</Name>
-		<ConfigUI>
-
-			<Field type="menu" id="serverName">
-				<Label>PiDACS Server Name:</Label>
-				<List class="self" method="getServers"
-					  dynamicReload="yes"/>
-			</Field>
-
-
-			<Field type="textfield" id="channelName" defaultValue="gg17">
+            <Field id="channelName" type="textfield" defaultValue="ab00">
                 <Label>Channel Hardware Name:</Label>
             </Field>
 
-			<Field type="separator" id="separator1"> </Field>
+            <Field id="separator1" type="separator"> </Field>
 
-			<Field type="menu" id="polarity"  defaultValue="0">
-				<Label>Logic Polarity:</Label>
-					<List>
-						<Option value="0">Normal</Option>
-						<Option value="1">Inverted</Option>
-					</List>
-			</Field>
+            <Field id="resolution" type="menu" defaultValue="12">
+                <Label>ADC Resolution:</Label>
+                <List>
+                    <Option value="12">12 Bits</Option>
+                    <Option value="14">14 Bits</Option>
+                    <Option value="16">16 Bits</Option>
+                    <Option value="18">18 Bits</Option>
+                </List>
+            </Field>
 
-			<Field type="label" id="label1" fontSize="small"
-				   fontColor="darkgray" alignWithControl="true">
-				<Label>Normal: device state is set to "off" for logic low and to "on" for logic high.
-Inverted: device state is set to "on" for logic low and to "off" for logic high.</Label>
-			</Field>
+            <Field id="gain" type="menu" defaultValue="1">
+                <Label>ADC Gain:</Label>
+                <List>
+                    <Option value="1">Unity Gain</Option>
+                    <Option value="2">2X Gain</Option>
+                    <Option value="4">4X Gain</Option>
+                    <Option value="8">8X Gain</Option>
+                </List>
+            </Field>
 
-			<Field type="menu" id="pullup" defaultValue="0">
-				<Label>Internal Input Bias:</Label>
-					<List>
-						<Option value="0">Open (no bias)</Option>
-						<Option value="1">Pull up to logic high</Option>
-						<Option value="2">Pull down to logic low</Option>
-					</List>
-			</Field>
+            <Field id="scaling" type="textfield" defaultValue="Default">
+                <Label>Scaling Factor:</Label>
 
-			<Field type="label" id="label2" fontSize="small"
-				   fontColor="darkgray" alignWithControl="true">
-				<Label>Open applies no bias to the digital input.
-Pull up or down biases the input to logic high or low through an internal resistor.
-Pull down is only available for Raspberry Pi built-in GPIO channels (ggxx or gpxx).
-Use pull up to directly connect push butttons, relays, or dry-contact switches to an input channel.
-				</Label>
-			</Field>
+            </Field>
 
-			<Field type="separator" id="separator2"> </Field>
+            <Field id="label2" type="label" fontSize="small"
+                   fontColor="darkgray" alignWithControl="true">
+                <Label>The Scaling Factor is used to calibrate an analog input device for a specific application.  It is an integer or floating point number tha multiplies all values read from the ADC.  Specifying "Default" uses the default value for the PiDACS device.</Label>
+            </Field>
 
-			<Field type="checkbox" id="change" defaultValue="false">
-			   <Label>Update on Change:</Label>
-			</Field>
+            <Field id="units" type="menu" defaultValue="V">
+                <Label>Analog Value Units:</Label>
+                <List>
+                    <Option value="V">Volts (V)</Option>
+                    <Option value="mV">Milivolts (mV)</Option>
+                    <Option value="µV">Microvolts (µV)</Option>
+                    <Option value="A">Amperes (A)</Option>
+                    <Option value="mA">Miliamps (mA)</Option>
+                    <Option value="µA">Microamps (µA)</Option>
+                    <Option value="W">Watts (W)</Option>
+                    <Option value="mW">Miliwatts (mW)</Option>
+                    <Option value="µW">Microwatts (µW)</Option>
+                    <Option value="°F">Degrees Fahrenheit (°F)</Option>
+                    <Option value="°C">Degrees Celsius (°C)</Option>
+                </List>
 
-			<Field type="label" id="label3" fontSize="small"
-				   fontColor="darkgray" alignWithControl="true">
-				<Label>Update the channel state from the server whenever a
-					change occurs.
-				</Label>
-			</Field>
+            </Field>
 
-			<Field type="checkbox" id="periodic" defaultValue="false">
-			   <Label>Update Periodically:</Label>
-			</Field>
+            <Field id="separator2" type="separator"> </Field>
 
-			<Field type="label" id="label4" fontSize="small"
-				   fontColor="darkgray" alignWithControl="true">
-				<Label>Update the channel state on a regular periodic
-					basis.
-				</Label>
-			</Field>
+            <Field id="change" type="textfield" defaultValue="2.0">
+                <Label>Change Reporting Percentage:</Label>
+            </Field>
 
-			<Field type="textfield" id="interval" defaultValue="60">
-				<Label>Periodic Update Interval (sec):</Label>
-			</Field>
+            <Field id="label3" type="label" fontSize="small"
+                   fontColor="darkgray" alignWithControl="true">
+                <Label>Update the sensor value on the server whenever the analog input changes by the specified percentage.  It may be an integer or floating point value less than or equal to 10%.</Label>
+            </Field>
 
-		</ConfigUI>
-	</Device>
+            <Field id="periodic" type="checkbox" defaultValue="false">
+                <Label>Update Periodically:</Label>
+            </Field>
 
-    <Device type="relay" id="digitalOutput">
-		<Name>Digital Output</Name>
-		<ConfigUI>
+            <Field id="label4" type="label" fontSize="small"
+                   fontColor="darkgray" alignWithControl="true">
+                <Label>Update the channel state on a regular periodic basis.</Label>
+            </Field>
 
-			<Field type="menu" id="serverName">
-				<Label>PiDACS server name:</Label>
-				<List class="self" method="getServers"
-					  dynamicReload="yes"/>
-			</Field>
+            <Field id="interval" type="textfield" defaultValue="60">
+                <Label>Periodic Update Interval (sec):</Label>
+            </Field>
 
-			<Field type="textfield" id="channelName" defaultValue="gg05">
+
+
+        </ConfigUI>
+    </Device>
+
+    <!-- ##################### Digital Input Device  ###################### -->
+
+    <Device id="digitalInput" type="sensor">
+        <Name>Digital Input</Name>
+        <ConfigUI>
+
+            <Field id="subModel" type="textfield" hidden="true"
+                   defaultValue="PiDACS">
+            </Field>
+
+            <Field id="serverName" type="menu">
+                <Label>PiDACS Server Name:</Label>
+                <List class="self" method="getServers"
+                      dynamicReload="yes"/>
+            </Field>
+
+            <Field id="channelName" type="textfield" defaultValue="gg17">
+                <Label>Channel Hardware Name:</Label>
+            </Field>
+
+            <Field id="separator1" type="separator"> </Field>
+
+            <Field id="polarity" type="menu" defaultValue="0">
+                <Label>Logic Polarity:</Label>
+                <List>
+                    <Option value="0">Normal</Option>
+                    <Option value="1">Inverted</Option>
+                </List>
+            </Field>
+
+            <Field id="label1" type="label" fontSize="small"
+                   fontColor="darkgray" alignWithControl="true">
+                <Label>Normal: device state is set to "off" for logic low and to "on" for logic high. Inverted: device state is set to "on" for logic low and to "off" for logic high.</Label>
+            </Field>
+
+            <Field id="pullup" type="menu" defaultValue="0">
+                <Label>Internal Input Bias:</Label>
+                <List>
+                    <Option value="0">Open (no bias)</Option>
+                    <Option value="1">Pull up to logic high</Option>
+                    <Option value="2">Pull down to logic low</Option>
+                </List>
+            </Field>
+
+            <Field id="label2" type="label" fontSize="small"
+                   fontColor="darkgray" alignWithControl="true">
+                <Label>Open applies no bias to the digital input. Pull up or down biases the input to logic high or low through an internal resistor. Pull down is only available for Raspberry Pi built-in GPIO channels (ggxx or gpxx). Use pull up to directly connect push butttons, relays, or dry-contact switches to an input channel.
+                </Label>
+            </Field>
+
+            <Field id="separator2" type="separator"> </Field>
+
+            <Field id="change" type="checkbox" defaultValue="false">
+                <Label>Update on Change:</Label>
+            </Field>
+
+            <Field id="label3" type="label" fontSize="small"
+                   fontColor="darkgray" alignWithControl="true">
+                <Label>Update the channel state on the server whenever a change occurs.</Label>
+            </Field>
+
+            <Field id="periodic" type="checkbox" defaultValue="false">
+                <Label>Update Periodically:</Label>
+            </Field>
+
+            <Field id="label4" type="label" fontSize="small"
+                   fontColor="darkgray" alignWithControl="true">
+                <Label>Update the channel state on a regular periodic basis.</Label>
+            </Field>
+
+            <Field id="interval" type="textfield" defaultValue="60">
+                <Label>Periodic Update Interval (sec):</Label>
+            </Field>
+
+        </ConfigUI>
+    </Device>
+
+    <!-- ##################### Digital Output Device  ##################### -->
+
+    <Device id="digitalOutput" type="relay">
+        <Name>Digital Output</Name>
+        <ConfigUI>
+
+            <Field id="subModel" type="textfield" hidden="true"
+                   defaultValue="PiDACS">
+            </Field>
+
+            <Field id="serverName" type="menu">
+                <Label>PiDACS server name:</Label>
+                <List class="self" method="getServers"
+                      dynamicReload="yes"/>
+            </Field>
+
+            <Field id="channelName" type="textfield" defaultValue="gg05">
                 <Label>Channel hardware name:</Label>
             </Field>
 
-            <Field type="separator" id="separator1"> </Field>
+            <Field id="separator1" type="separator"> </Field>
 
-			<Field type="checkbox" id="momentary" defaultValue="false">
-				<Label>Momentary turn-on:</Label>
-			</Field>
+            <Field id="momentary" type="checkbox" defaultValue="false">
+                <Label>Momentary turn-on:</Label>
+            </Field>
 
-			<Field type="label" id="label1">
-				<Label>							Enabling momentary turn-on causes the
-							device state to be set to "on" and subse-
-							quently set to "off" whenever the device is
-							turned on.  The duration of the "on" state is
-							equal to the turn-off delay time entered
-							below.  Use this to trigger a relay for
-							"momentary contact", a feature needed to
-							cycle a conventional garage door opener.
-				</Label>
-			</Field>
+            <Field id="label1" type="label" fontSize="small"
+                   fontColor="darkgray" alignWithControl="true">
+                <Label>Enabling momentary turn-on causes the device state to be set to "on" and subsequently set to "off" whenever the device is turned on.  The duration of the "on" state is equal to the turn-off delay time entered below.  Use this to trigger a relay for "momentary contact", a feature needed to cycle a conventional garage door opener.
+                </Label>
+            </Field>
 
-			<Field type="textfield" id="turnOffDelay" defaultValue="0">
+            <Field id="turnOffDelay" type="textfield" defaultValue="0">
                 <Label>Turn-off Delay (seconds):</Label>
             </Field>
 
-			<Field type="label" id="label2">
-				<Label>							Specifying the default turn-off delay
-							(0 seconds) results in an actual delay of
-							about one-half of a second.</Label>
-			</Field>
+            <Field id="label2" type="label" fontSize="small"
+                   fontColor="darkgray" alignWithControl="true">
+                <Label>Specifying the default turn-off delay (0 seconds) results in an actual delay of about one-half of a second.</Label>
+            </Field>
 
-			<Field type="separator" id="separator2"> </Field>
+            <Field id="separator2" type="separator"> </Field>
 
-			<Field type="checkbox" id="change" defaultValue="false">
-			   <Label>Update on Change:</Label>
-			</Field>
+            <Field id="change" type="checkbox" defaultValue="false">
+                <Label>Update on Change:</Label>
+            </Field>
 
-			<Field type="label" id="label3" fontSize="small"
-				   fontColor="darkgray" alignWithControl="true">
-				<Label>Update the channel state from the server whenever a
-					change occurs.
-				</Label>
-			</Field>
+            <Field id="label3" type="label" fontSize="small"
+                   fontColor="darkgray" alignWithControl="true">
+                <Label>Update the channel state from the server whenever a change occurs.</Label>
+            </Field>
 
-			<Field type="checkbox" id="periodic" defaultValue="false">
-			   <Label>Update Periodically:</Label>
-			</Field>
+            <Field id="periodic" type="checkbox" defaultValue="false">
+                <Label>Update Periodically:</Label>
+            </Field>
 
-			<Field type="label" id="label4" fontSize="small"
-				   fontColor="darkgray" alignWithControl="true">
-				<Label>Update the channel state from the server periodically
-					at the specified interval (seconds).
-				</Label>
-			</Field>
+            <Field id="label4" type="label" fontSize="small"
+                   fontColor="darkgray" alignWithControl="true">
+                <Label>Update the channel state from the server periodically at the specified interval (seconds).</Label>
+            </Field>
 
-			<Field type="textfield" id="interval" defaultValue="60">
-				<Label>Periodic Update Interval (sec):</Label>
-			</Field>
+            <Field id="interval" type="textfield" defaultValue="60">
+                <Label>Periodic Update Interval (sec):</Label>
+            </Field>
 
         </ConfigUI>
-	</Device>
+    </Device>
 
 </Devices>

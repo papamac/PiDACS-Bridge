@@ -1,15 +1,44 @@
-#! /usr/bin/env python
+"""
+MIT LICENSE
+
+Copyright (c) 2018-2019 David A. Krause, aka papamac
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+DESCRIPTION
+
+"""
+__author__ = 'papamac'
+__version__ = '0.9.0'
+__date__ = 'July 16, 2019'
 
 import indigo
 from logging import NOTSET, DEBUG, INFO, WARNING, ERROR, CRITICAL
 from random import choice
 from threading import Thread
+from time import sleep
 
 from pidacs_global import *
 
+PORT_TYPES = (u'ab', u'ga', u'gb', u'gg', u'gp')
 LOG = None
 PLUGIN = None
-
 
 class PiDACS(Thread):
 
@@ -68,6 +97,7 @@ class PiDACS(Thread):
         Thread.start(self)
         self.servers[self.name] = self
         srvDev.updateStateOnServer(key=u'status', value=u'Running')
+        srvDev.updateStateImageOnServer(indigo.kStateImageSel.SensorOn)
         self.setErrorState(self.name, False)
         LOG.debug(u'server "%s" started' % self.name)
             
@@ -79,6 +109,7 @@ class PiDACS(Thread):
         srvDev = indigo.devices.get(self.name)
         if srvDev:
             srvDev.updateStateOnServer(key=u'status', value=u'Stopped')
+            srvDev.updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
         LOG.debug(u'server "%s" stopped' % self.name)
 
     def _processServerMessages(self):
@@ -92,34 +123,60 @@ class PiDACS(Thread):
                 errMsg = 'recv error "%s" %s' % (self.name, err)
                 break
             except BrokenPipe:
-                errMsg = 'server disconnected "%s"' % self.name
+                errMsg = 'disconnected "%s"' % self.name
                 break
             except ServerTimeout:
-                errMsg = 'server timeout "%s"' % self.name
+                errMsg = 'timeout "%s"' % self.name
                 break
 
             self._dtRecvd = datetime.now()
-            name = u'"%s"' % self.name
-            LOG.debug(u'received %-21s %s' % (name, message))
+            messagedt = message[:DATETIME_LENGTH]
             try:
-                dtSent = datetime.strptime(message[:26],
-                                           '%Y-%m-%d %H:%M:%S.%f')
+                dtSent = datetime.strptime(messagedt, '%Y-%m-%d %H:%M:%S.%f')
             except ValueError:
-                LOG.warn(u'invalid datetime in message "%s"' % self.name)
+                LOG.warn(u'invalid datetime %s" "%s"' % (self.name, messagedt))
                 continue
             latency = (self._dtRecvd - dtSent).total_seconds()
             if latency > LATENCY:
-                LOG.warn(u'late message "%s" %3.1f' % (self.name, latency))
-            messageList = message[26:].split()
-            messageId = messageList[0]
-            if messageId in (u'change:', u'value:'):
-                devName = messageList[1].split(u'|')[0]
-                valueStr = messageList[2]
-                value = float(valueStr) if u'.' in valueStr else int(valueStr)
+                LOG.warn(u'late message "%s"; lartency = %3.1f secs'
+                         % (self.name, latency))
+            messageList = message[DATETIME_LENGTH:].split()
+            messageId = messageList[0].replace(u':', u'')
+            level = (eval(messageId)
+                     if messageId in ('WARNING', 'ERROR') else DEBUG)
+            name = u'"%s"' % self.name
+            messageText = message[DATETIME_LENGTH + 1:]
+            LOG.log(level, u'received %-18s %s' % (name, messageText))
+            if messageId in (u'change', u'value'):
+                channelId = messageList[1]
+                devName = channelId.split(u'[')[0]
                 dev = indigo.devices.get(devName)
                 if dev:
-                    if dev.enabled:
-                        state = u'on' if value else u'off'
+                    value = messageList[2]
+                    if value == u'!ERROR':
+                        dev.setErrorStateOnServer(u'Error')
+                        continue
+                    if not dev.enabled:
+                        continue
+                    if dev.deviceTypeId == u'analogInput':
+                        valueIsanumber = value.replace(u'.', '', 1).isdecimal()
+                        if not valueIsanumber:
+                            LOG.error(u'invalid analog value "%s" for'
+                                      u'channel "%s"' % (value, channelId))
+                            continue
+                        sensorValue = float(value)
+                        units = dev.pluginProps[u'units']
+                        uiValue = u'%5.2f %s' % (sensorValue, units)
+                        dev.updateStateOnServer('sensorValue', sensorValue,
+                                                uiValue=uiValue)
+                        LOG.info(u'received "%s" update to "%s"'
+                                 % (dev.name, uiValue))
+                    else:
+                        if value not in (u'0', u'1'):
+                            LOG.error(u'invalid bit value "%s" for'
+                                      u'channel "%s"' % (value, channelId))
+                            continue
+                        state = u'on' if value == u'1' else u'off'
                         dev.updateStateOnServer('onOffState', state)
                         dev.updateStateImageOnServer(
                                 indigo.kStateImageSel.Auto)
@@ -166,7 +223,7 @@ class Plugin(indigo.PluginBase):
         super(Plugin, self).__init__(pluginId, pluginDisplayName,
                                      pluginVersion, pluginPrefs)
         self.indigo_log_handler.setLevel(NOTSET)
-        level = eval(pluginPrefs.get(u'loggingLevel', u'5'))
+        level = eval(pluginPrefs[u'loggingLevel'])
         global LOG, PLUGIN
         LOG = self.logger
         LOG.setLevel(level)
@@ -179,9 +236,15 @@ class Plugin(indigo.PluginBase):
     def shutdown(self):
         LOG.debug(u'shutdown called')
 
+    def validatePrefsConfigUi(self, valuesDict):
+        LOG.debug(u'validatePrefsConfigUi called')
+        level = eval(valuesDict[u'loggingLevel'])
+        LOG.setLevel(level)
+        return True, valuesDict
+
     def validateDeviceConfigUi(self, valuesDict, typeId, devId):
         dev = indigo.devices[devId]
-        LOG.debug(u'validateDeviceConf called for "%s"' % dev.name)
+        LOG.debug(u'validateDeviceConfigUi called for "%s"' % dev.name)
         LOG.debug(u'dev.configured = %s' % dev.configured)
         values = valuesDict
         errors = indigo.Dict()
@@ -195,7 +258,7 @@ class Plugin(indigo.PluginBase):
                 errors[u'serverAddress'] = (u'Address resolution error: %s'
                                             % err)
             portNumber = valuesDict[u'portNumber']
-            if portNumber.isnumeric():
+            if portNumber.isdecimal():
                 portNumber = int(portNumber)
                 if portNumber not in DYNAMIC_PORT_RANGE:
                     errors[u'portNumber'] = (u'Port number not in dynamic '
@@ -227,14 +290,15 @@ class Plugin(indigo.PluginBase):
             serverId = srvDev.pluginProps[u'serverId']
             channelName = valuesDict[u'channelName']
             goodName = (len(channelName) == 4
-                        and channelName[:2] in ('ga', 'gb', 'gg', 'gp')
-                        and channelName[2:].isnumeric())
+                        and channelName[:2] in PORT_TYPES
+                        and channelName[2:].isdecimal())
             if not goodName:
                 errors[u'channelName'] = u'Invalid channel name'
             values[u'address'] = u'%s.%s' % (serverId, channelName)
             if typeId == u'digitalOutput':
                 delay = valuesDict[u'turnOffDelay']
-                if not delay.replace(u'.', u'').isnumeric():
+                delayIsanumber = delay.replace(u'.', '', 1).isdecimal()
+                if not delayIsanumber:
                     errors[u'turnOffDelay'] = (u'Turn-off delay is not a '
                                                u'number')
 
@@ -285,27 +349,37 @@ class Plugin(indigo.PluginBase):
                 serverName = dev.pluginProps[u'serverName']
                 server = PiDACS.servers.get(serverName)
                 if server and server.running:
-                    if typeId == u'digitalInput':
-                        direction = u'1'
-                        polarity = dev.pluginProps[u'polarity']
-                        pullup = dev.pluginProps[u'pullup']
-                    else:  # deviceTypeId == u'digitalOutput'
-                        direction = polarity = pullup = u'0'
-
                     channelName = dev.pluginProps[u'channelName']
                     server.sendRequest(channelName, u'alias', dev.name)
-                    server.sendRequest(dev.name, u'direction', direction)
-                    server.sendRequest(dev.name, u'polarity', polarity)
-                    server.sendRequest(dev.name, u'pullup', pullup)
-                    server.sendRequest(dev.name, u'read')
-                    if (typeId == u'digitalOutput'
-                            and self.pluginPrefs[u'restartClear']):
-                        server.sendRequest(dev.name, u'write', '0')
-                    if dev.pluginProps[u'change']:
-                        server.sendRequest(dev.name, u'change', '1')
+                    if typeId == u'analogInput':
+                        resolution = dev.pluginProps[u'resolution']
+                        server.sendRequest(dev.name, u'resolution', resolution)
+                        gain = dev.pluginProps[u'gain']
+                        server.sendRequest(dev.name, u'gain', gain)
+                        scaling = dev.pluginProps[u'scaling']
+                        if scaling != u'Default':
+                            server.sendRequest(dev.name, u'scaling', scaling)
+                    elif typeId == u'digitalInput':
+                        direction = u'1'
+                        server.sendRequest(dev.name, u'direction', direction)
+                        polarity = dev.pluginProps[u'polarity']
+                        server.sendRequest(dev.name, u'polarity', polarity)
+                        pullup = dev.pluginProps[u'pullup']
+                        server.sendRequest(dev.name, u'pullup', pullup)
+                    else:  # deviceTypeId == u'digitalOutput'
+                        direction = u'0'
+                        server.sendRequest(dev.name, u'direction', direction)
+                        if self.pluginPrefs[u'restartClear']:
+                            server.sendRequest(dev.name, u'write', '0')
+                    change = dev.pluginProps[u'change']
+                    if isinstance(change, bool):
+                        change = u'true' if change else u'false'
+                    server.sendRequest(dev.name, u'change', change)
                     if dev.pluginProps[u'periodic']:
                         interval = dev.pluginProps[u'interval']
                         server.sendRequest(dev.name, u'interval', interval)
+                    server.sendRequest(dev.name, u'read')
+                    sleep(0.5)
 
     def deviceStopComm(self, dev):
         LOG.debug(u'devicesStopComm called for "%s"' % dev.name)

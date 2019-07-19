@@ -34,7 +34,7 @@ from socket import *
 
 # PiDACS message length constants:
 
-MESSAGE_LENGTH = 100          # Fixed message length for data queue and sockets
+MESSAGE_LENGTH = 110          # Fixed message length for data queue and sockets
 #                              (bytes).
 DATETIME_LENGTH = len(str(datetime.now()))  # Length of datetime message
 #                                             segment (bytes).
@@ -43,7 +43,7 @@ TEXT_LENGTH = MESSAGE_LENGTH - DATETIME_LENGTH - 3  # Length of text message
 
 # PiDACS socket/server constants:
 
-SOCKET_TIMEOUT = 0.75          # Timeout limit for socket connection, recv, and
+SOCKET_TIMEOUT = 0.75         # Timeout limit for socket connection, recv, and
 #                               send methods (sec).
 LATENCY = 1.0                 # Limit on network latency for all server to
 #                               client messages (sec).  Exceeding the latency
@@ -53,7 +53,7 @@ SERVER_TIMEOUT = 610.0        # Timeout limit for server keep-alive or other
 #                               data messages (sec).  Must be comfortably
 #                               longer than the IOMGR STATUS_INTERVAL (600 sec)
 #                               to allow time for network delays.
-DEFAULT_ADDRESS = 'raspi3bp-ha.local'     # papamac's favorite server.
+DEFAULT_ADDRESS = 'localhost' # local pidacs server.
 DYNAMIC_PORT_RANGE = range(49152, 65535)  # Range of valid dynamic ports.
 DEFAULT_PORT_NUMBER = 50000   # Arbitrary selection from DYNAMIC_PORT_RANGE.
 
