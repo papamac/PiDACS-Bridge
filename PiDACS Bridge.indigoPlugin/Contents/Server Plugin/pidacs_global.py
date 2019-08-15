@@ -25,14 +25,18 @@ DESCRIPTION
 
 """
 __author__ = 'papamac'
-__version__ = '0.9.0'
-__date__ = 'April 12, 2018'
+__version__ = '0.9.6'
+__date__ = 'August 13, 2019'
 
 from datetime import datetime
 from socket import *
 
 
-# PiDACS message length constants:
+# Data logging level used in log.log(level, ..) and log.setLevel(level):
+
+DATA = 15                     # Data value from IOMGR
+
+# Message length constants:
 
 MESSAGE_LENGTH = 110          # Fixed message length for data queue and sockets
 #                              (bytes).
@@ -41,14 +45,14 @@ DATETIME_LENGTH = len(str(datetime.now()))  # Length of datetime message
 TEXT_LENGTH = MESSAGE_LENGTH - DATETIME_LENGTH - 3  # Length of text message
 #                                                     segment (bytes).
 
-# PiDACS socket/server constants:
+# Socket/server constants:
 
 SOCKET_TIMEOUT = 0.75         # Timeout limit for socket connection, recv, and
 #                               send methods (sec).
 LATENCY = 1.0                 # Limit on network latency for all server to
 #                               client messages (sec).  Exceeding the latency
-#                               limit is reported for user awareness, but does
-#                               nor otherwise effect rpio processing.
+#                               limit is reported for user awareness, but has
+#                               no other effect.
 SERVER_TIMEOUT = 610.0        # Timeout limit for server keep-alive or other
 #                               data messages (sec).  Must be comfortably
 #                               longer than the IOMGR STATUS_INTERVAL (600 sec)
@@ -58,7 +62,7 @@ DYNAMIC_PORT_RANGE = range(49152, 65535)  # Range of valid dynamic ports.
 DEFAULT_PORT_NUMBER = 50000   # Arbitrary selection from DYNAMIC_PORT_RANGE.
 
 
-# PiDACS exceptions:
+# Exceptions:
 
 class BrokenPipe(Exception):
     pass

@@ -25,10 +25,11 @@ DESCRIPTION
 
 """
 __author__ = 'papamac'
-__version__ = '0.9.0'
-__date__ = 'July 16, 2019'
+__version__ = '0.9.7'
+__date__ = 'August 14, 2019'
 
 import indigo
+from logging import addLevelName
 from logging import NOTSET, DEBUG, INFO, WARNING, ERROR, CRITICAL
 from random import choice
 from threading import Thread
@@ -37,8 +38,10 @@ from time import sleep
 from pidacs_global import *
 
 PORT_TYPES = (u'ab', u'ga', u'gb', u'gg', u'gp')
+THREAD_DEBUG = 5
 LOG = None
 PLUGIN = None
+
 
 class PiDACS(Thread):
 
@@ -65,8 +68,7 @@ class PiDACS(Thread):
         self._socket = None
         self._dtRecvd = None
         self.running = False
-        Thread.__init__(self, name=serverName,
-                        target=self._processServerMessages)
+        Thread.__init__(self, name=serverName)
 
     def start(self):
 
@@ -112,8 +114,8 @@ class PiDACS(Thread):
             srvDev.updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
         LOG.debug(u'server "%s" stopped' % self.name)
 
-    def _processServerMessages(self):
-        LOG.log(5, u'thread "%s" started' % self.name)
+    def run(self):
+        LOG.log(THREAD_DEBUG, u'thread "%s" started' % self.name)
         while self.running:
             try:
                 message = recv_msg(self, self._socket, self._dtRecvd)
@@ -130,24 +132,23 @@ class PiDACS(Thread):
                 break
 
             self._dtRecvd = datetime.now()
-            messagedt = message[:DATETIME_LENGTH]
+            dtMessage = message[:DATETIME_LENGTH]
             try:
-                dtSent = datetime.strptime(messagedt, '%Y-%m-%d %H:%M:%S.%f')
+                dtSent = datetime.strptime(dtMessage, '%Y-%m-%d %H:%M:%S.%f')
             except ValueError:
-                LOG.warn(u'invalid datetime %s" "%s"' % (self.name, messagedt))
+                LOG.warning(u'invalid datetime %s" "%s"'
+                            % (self.name, dtMessage))
                 continue
             latency = (self._dtRecvd - dtSent).total_seconds()
             if latency > LATENCY:
-                LOG.warn(u'late message "%s"; lartency = %3.1f secs'
-                         % (self.name, latency))
+                LOG.warning(u'late message "%s"; lartency = %3.1f secs'
+                            % (self.name, latency))
             messageList = message[DATETIME_LENGTH:].split()
-            messageId = messageList[0].replace(u':', u'')
-            level = (eval(messageId)
-                     if messageId in ('WARNING', 'ERROR') else DEBUG)
+            level = int(messageList[0])
             name = u'"%s"' % self.name
-            messageText = message[DATETIME_LENGTH + 1:]
+            messageText = message[DATETIME_LENGTH + 4:]
             LOG.log(level, u'received %-18s %s' % (name, messageText))
-            if messageId in (u'change', u'value'):
+            if level == DATA:
                 channelId = messageList[1]
                 devName = channelId.split(u'[')[0]
                 dev = indigo.devices.get(devName)
@@ -173,7 +174,7 @@ class PiDACS(Thread):
                                  % (dev.name, uiValue))
                     else:
                         if value not in (u'0', u'1'):
-                            LOG.error(u'invalid bit value "%s" for'
+                            LOG.error(u'invalid bit value "%s" for '
                                       u'channel "%s"' % (value, channelId))
                             continue
                         state = u'on' if value == u'1' else u'off'
@@ -184,16 +185,17 @@ class PiDACS(Thread):
                                  % (dev.name, state))
                 else:
                     if PLUGIN.pluginPrefs[u'logStateChanges']:
-                        LOG.warn(u'received "%s" state change on unassigned '
-                                 u'device %s' % (self.name, devName))
+                        LOG.warning(u'received "%s" state change on '
+                                    u'unassigned device %s'
+                                    % (self.name, devName))
         else:
-            LOG.log(5, u'thread "%s" ended normally' % self.name)
+            LOG.log(THREAD_DEBUG, u'thread "%s" ended normally' % self.name)
             return
 
         LOG.error(errMsg)
         self.stop()
         self.setErrorState(self.name)
-        LOG.log(5, u'thread "%s" ended with errors' % self.name)
+        LOG.log(THREAD_DEBUG, u'thread "%s" ended with errors' % self.name)
 
     def sendRequest(self, *args):
         if self.running:
@@ -222,11 +224,13 @@ class Plugin(indigo.PluginBase):
                  pluginVersion, pluginPrefs):
         super(Plugin, self).__init__(pluginId, pluginDisplayName,
                                      pluginVersion, pluginPrefs)
+        addLevelName(DATA, u'DATA')
         self.indigo_log_handler.setLevel(NOTSET)
         level = eval(pluginPrefs[u'loggingLevel'])
         global LOG, PLUGIN
         LOG = self.logger
         LOG.setLevel(level)
+
         PLUGIN = self
         LOG.debug(pluginPrefs)
 
@@ -329,8 +333,8 @@ class Plugin(indigo.PluginBase):
             dev.subModel = u'PiDACS'
             dev.replaceOnServer()
         if u' ' in dev.name:
-            LOG.warn(u'startup for device "%s" deferred until final device '
-                     u'name (no spaces) is specified' % dev.name)
+            LOG.warning(u'startup for device "%s" deferred until final device '
+                        u'name (no spaces) is specified' % dev.name)
         else:
             typeId = dev.deviceTypeId
             if typeId == u'server':

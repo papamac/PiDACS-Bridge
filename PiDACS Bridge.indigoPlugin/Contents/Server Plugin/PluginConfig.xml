@@ -16,8 +16,9 @@
     <Field type="menu" id="loggingLevel" defaultValue="INFO">
         <Label>Logging Level:</Label>
         <List>
-            <Option value="5">Thread Debug</Option>
+            <Option value="THREAD_DEBUG">Thread Debug</Option>
             <Option value="DEBUG">Debug</Option>
+            <Option value="DATA">Data</Option>
             <Option value="INFO">Info</Option>
             <Option value="WARNING">Warning</Option>
             <Option value="ERROR">Error</Option>
