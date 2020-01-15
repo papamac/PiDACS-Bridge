@@ -8,8 +8,8 @@ FUNCTION:  plugin is a PiDACS client that can connect to multiple PiDACS
            device objects.
    USAGE:  plugin.py is included in a standard indigo plugin bundle.
   AUTHOR:  papamac
- VERSION:  1.0.7
-    DATE:  January 14, 2020
+ VERSION:  1.0.8
+    DATE:  January 15, 2020
 
 
 MIT LICENSE:
@@ -49,8 +49,8 @@ bundle.
 
 """
 __author__ = u'papamac'
-__version__ = u'1.0.7'
-__date__ = u'January 14, 2020'
+__version__ = u'1.0.8'
+__date__ = u'January 15, 2020'
 
 import indigo
 from logging import addLevelName, getLogger, NOTSET
@@ -261,7 +261,7 @@ class Plugin(indigo.PluginBase):
                     if units[0] in (u'm', u'µ', u'°'):
                         fmt = u'%d %s'
                     else:
-                        fmt = u'%5.2f %s'
+                        fmt = u'%4.2f %s'
                     uiValue = fmt % (sensorValue, units)
                     dev.updateStateOnServer(u'sensorValue', sensorValue,
                                             uiValue=uiValue)
