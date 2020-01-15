@@ -1,3 +1,4 @@
+# coding=utf-8
 """
  PACKAGE:  indigo plugin interface to PiDACS (PiDACS-Bridge)
   MODULE:  plugin.py
@@ -7,8 +8,8 @@ FUNCTION:  plugin is a PiDACS client that can connect to multiple PiDACS
            device objects.
    USAGE:  plugin.py is included in a standard indigo plugin bundle.
   AUTHOR:  papamac
- VERSION:  1.0.6
-    DATE:  January 10, 2020
+ VERSION:  1.0.7
+    DATE:  January 14, 2020
 
 
 MIT LICENSE:
@@ -48,8 +49,8 @@ bundle.
 
 """
 __author__ = u'papamac'
-__version__ = u'1.0.6'
-__date__ = u'January 10, 2020'
+__version__ = u'1.0.7'
+__date__ = u'January 14, 2020'
 
 import indigo
 from logging import addLevelName, getLogger, NOTSET
@@ -257,7 +258,11 @@ class Plugin(indigo.PluginBase):
                         return
                     sensorValue = float(value)
                     units = dev.pluginProps[u'units']
-                    uiValue = u'%5.2f %s' % (sensorValue, units)
+                    if units[0] in (u'm', u'µ', u'°'):
+                        fmt = u'%d %s'
+                    else:
+                        fmt = u'%5.2f %s'
+                    uiValue = fmt % (sensorValue, units)
                     dev.updateStateOnServer(u'sensorValue', sensorValue,
                                             uiValue=uiValue)
                     LOG.info(u'received "%s" update to "%s"'

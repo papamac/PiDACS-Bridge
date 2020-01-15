@@ -7,8 +7,8 @@ FUNCTION:  Provides classes and methods to reliably receive and send fixed-
    USAGE:  messagesocket is imported and used within main programs.  It is
            compatible with Python 2.7.16 and all versions of Python 3.x.
   AUTHOR:  papamac
- VERSION:  1.0.8
-    DATE:  January 8, 2020
+ VERSION:  1.0.9
+    DATE:  January 15, 2020
 
 
 MIT LICENSE:
@@ -44,8 +44,8 @@ DEPENDENCIES/LIMITATIONS:
 
 """
 __author__ = 'papamac'
-__version__ = '1.0.8'
-__date__ = 'January 8, 2020'
+__version__ = '1.0.9'
+__date__ = 'January 15, 2020'
 
 
 from binascii import crc32
@@ -161,6 +161,10 @@ class MessageSocket(Thread):
         except OSError as err:
             LOG.error('connection error %s "%s:%s" %s'
                       % (err.errno, server, port_number, err.strerror))
+            return
+        except Exception as err:  # Needed for Python 2.7.
+            LOG.error('connection error "%s:%s" %s'
+                      % (server, port_number, err))
             return
         self.connected = True
         ipv4, port = self._socket.getpeername()
