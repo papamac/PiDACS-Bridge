@@ -7,8 +7,8 @@ FUNCTION:  Provides classes and methods to reliably receive and send fixed-
    USAGE:  messagesocket is imported and used within main programs.  It is
            compatible with Python 2.7.16 and all versions of Python 3.x.
   AUTHOR:  papamac
- VERSION:  1.0.9
-    DATE:  January 15, 2020
+ VERSION:  1.0.12
+    DATE:  January 17, 2020
 
 
 MIT LICENSE:
@@ -44,8 +44,8 @@ DEPENDENCIES/LIMITATIONS:
 
 """
 __author__ = 'papamac'
-__version__ = '1.0.9'
-__date__ = 'January 15, 2020'
+__version__ = '1.0.12'
+__date__ = 'January 17, 2020'
 
 
 from binascii import crc32
@@ -130,12 +130,18 @@ class MessageSocket(Thread):
     # Public methods.
 
     def connect_to_client(self, client_socket, client_address_tuple):
+
+        # Complete messagesocket initialization.
+
         self._socket = client_socket
         self._socket.settimeout(SOCKET_TIMEOUT)
         self.connected = True
         ipv4, port_number = client_address_tuple
         self.name = '[%s:%s]' % (ipv4, port_number)
         self._status = MessageStatus(self.name)
+
+        # Receive hostname from client and add it to messagesocket name.
+
         hostname = self.recv()
         if hostname:
             self.name = hostname + self.name
@@ -146,26 +152,34 @@ class MessageSocket(Thread):
             self._shutdown(err_msg)
 
     def connect_to_server(self, server, port_number):
+
+        # Complete messagesocket initialization.
+
         self._socket = socket(AF_INET, SOCK_STREAM)
         self._socket.settimeout(SOCKET_TIMEOUT)
+
+        # Try connecting to server and handle exceptions.
+
         try:
             self._socket.connect((server, port_number))
         except timeout:
             LOG.error('connection timeout "%s:%s"' % (server, port_number))
             return
         except gaierror as err:
-            errno, strerr = err
-            LOG.error('server address error %s "%s:%s" %s'
-                      % (errno, server, port_number, strerr))
+            LOG.error('server address error "%s:%s" %s'
+                      % (server, port_number, err))
             return
         except OSError as err:
-            LOG.error('connection error %s "%s:%s" %s'
-                      % (err.errno, server, port_number, err.strerror))
-            return
-        except Exception as err:  # Needed for Python 2.7.
             LOG.error('connection error "%s:%s" %s'
                       % (server, port_number, err))
             return
+        except Exception as err:  # Catch-all needed for Python 2.7.
+            LOG.error('connection exception "%s:%s" %s'
+                      % (server, port_number, err))
+            return
+
+        # Connected; send hostname to server.
+
         self.connected = True
         ipv4, port = self._socket.getpeername()
         self.name = '%s[%s:%s]' % (server, ipv4, port)
@@ -200,12 +214,10 @@ class MessageSocket(Thread):
                      message was received, but it contains fatal header errors
                      and cannot be processed.  The socket remains open.
         None:        recv returns None if no message was received and the
-                     socket is closed.  This category includes long timeouts,
-                     socket exceptions, and normal socket shutdown by the peer.
+                     socket was shut down.  This happens for long timeouts
+                     (>= recv_timeout), socket exceptions, and peer socket
+                     disconnection.
         """
-        if not self.connected:
-            return  # Return None for hard error.
-        
         byte_msg = b''
         bytes_received = 0
         while bytes_received < MSG_LEN:
@@ -225,8 +237,11 @@ class MessageSocket(Thread):
                 self._shutdown(err_msg)
                 return
             except OSError as err:
-                err_msg = ('recv error %s "%s" %s'
-                           % (err.errno, self.name, err.strerror))
+                err_msg = ('recv error "%s" %s' % (self.name, err))
+                self._shutdown(err_msg)
+                return
+            except Exception as err:  # Catch-all exception, just in case.
+                err_msg = ('recv exception "%s" %s' % (self.name, err))
                 self._shutdown(err_msg)
                 return
             if not segment:  # Null segment; peer disconnected.
@@ -248,10 +263,18 @@ class MessageSocket(Thread):
 #                         string as determined by _status.recv.
 
     def send(self, message):
-        if not self.connected:
-            return
+        """
+        Send a fixed-length message in multiple segments.
 
-        # Remove blanks and truncate if necessary.
+        send has two possible returns:
+
+        bytes_sent:  send returns the number of bytes sent if the full-length
+                     message was sent without error.
+        None:        send returns None if no message was sent and the socket
+                     was shut down.  This happens for timeouts, socket
+                     exceptions, and segment not sent.
+        """
+        # Remove blanks and truncate message if necessary.
 
         message = message.strip()
         if len(message) > DATA_LEN:
@@ -280,25 +303,31 @@ class MessageSocket(Thread):
             try:
                 segment_bytes_sent = self._socket.send(byte_msg[bytes_sent:])
             except timeout:
-                self._status.send_timeout()
+                err_msg = 'send timeout "%s"' % self.name
+                self._shutdown(err_msg)
                 return
             except OSError as err:
-                err_msg = ('send error %s "%s" %s'
-                           % (err.errno, self.name, err.strerror))
+                err_msg = ('send error "%s" %s' % (self.name, err))
+                self._shutdown(err_msg)
+                return
+            except Exception as err:  # Catch-all exception, just in case.
+                err_msg = ('send exception "%s" %s' % (self.name, err))
                 self._shutdown(err_msg)
                 return
             if not segment_bytes_sent:  # Error; segment not sent.
-                self._status.send_error()
+                err_msg = 'send error "%s" segment not sent' % self.name
+                self._shutdown(err_msg)
                 return
 
             # Segment sent; continue.
-            
+
             bytes_sent += segment_bytes_sent
 
         # Full-length byte_msg sent.
 
         self._status.send()
         self._send_seq = next_seq(self._send_seq)
+        return bytes_sent
 
 
 class MessageStatus:
@@ -315,7 +344,6 @@ class MessageStatus:
 
     def _init(self):
         self._shorts = self._crc_errs = self._dt_errs = self._seq_errs = 0
-        self._send_errs = self._send_timeouts = 0
         self._recvd = self._sent = 0
         self._min = 1000000.0
         self._max = self._sum = self._sum2 = 0.0
@@ -338,12 +366,9 @@ class MessageStatus:
                                   self._seq_errs, min_, self._max, avg, std,
                                   self._recvd, recv_rate))
                 send_rate = self._sent / interval
-                send_status = ('send[%i %i|%i %i]'
-                               % (self._send_errs, self._send_timeouts,
-                                  self._sent, send_rate))
+                send_status = 'send[%i %i]' % (self._sent, send_rate)
                 errs = (self._shorts + self._crc_errs + self._dt_errs +
-                        self._seq_errs + self._send_errs + self._send_timeouts
-                        or self._max > 1000.0 * SOCKET_TIMEOUT)
+                        self._seq_errs or self._max > 1000.0 * SOCKET_TIMEOUT)
                 level = ERROR if errs else DEBUG
                 LOG.log(level, 'status "%s" %s %s'
                                % (self._name, recv_status, send_status))
@@ -396,14 +421,6 @@ class MessageStatus:
 
     def send(self):
         self._sent += 1
-        self._report()
-
-    def send_error(self):
-        self._send_errs += 1
-        self._report()
-
-    def send_timeout(self):
-        self._send_timeouts += 1
         self._report()
 
 

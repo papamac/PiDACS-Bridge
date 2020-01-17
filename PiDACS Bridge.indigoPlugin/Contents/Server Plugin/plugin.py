@@ -8,8 +8,8 @@ FUNCTION:  plugin is a PiDACS client that can connect to multiple PiDACS
            device objects.
    USAGE:  plugin.py is included in a standard indigo plugin bundle.
   AUTHOR:  papamac
- VERSION:  1.0.8
-    DATE:  January 15, 2020
+ VERSION:  1.0.9
+    DATE:  January 17, 2020
 
 
 MIT LICENSE:
@@ -49,8 +49,8 @@ bundle.
 
 """
 __author__ = u'papamac'
-__version__ = u'1.0.8'
-__date__ = u'January 15, 2020'
+__version__ = u'1.0.9'
+__date__ = u'January 17, 2020'
 
 import indigo
 from logging import addLevelName, getLogger, NOTSET
