@@ -4,6 +4,7 @@
       <w>argsandlogs</w>
       <w>colortext</w>
       <w>dacs</w>
+      <w>darkgray</w>
       <w>errno</w>
       <w>iomgr</w>
       <w>isanumber</w>
@@ -18,6 +19,7 @@
       <w>recv</w>
       <w>recvd</w>
       <w>strerr</w>
+      <w>threaddebug</w>
     </words>
   </dictionary>
 </component>

@@ -11,8 +11,8 @@ FUNCTION:  colortext provides globally-defined ASCII escape sequences and a
            modules.  It is compatible with Python 2.7.16 and all versions of
            Python 3.x.
   AUTHOR:  papamac
- VERSION:  1.0.4
-    DATE:  January 5, 2020
+ VERSION:  1.0.9
+    DATE:  May 22, 2020
 
 
 MIT LICENSE:
@@ -47,18 +47,18 @@ DEPENDENCIES/LIMITATIONS:
 ****************************** needs work *************************************
 
 """
+
 __author__ = 'papamac'
-__version__ = '1.0.4'
-__date__ = 'January 5, 2020'
+__version__ = '1.0.9'
+__date__ = 'May 22, 2020'
 
 import logging
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 
-
 # Global constants used in colortext, but also imported in
 # papamaclib/argsandlogs.py, PiDACS/iomgr.py, and PiDACS-Bridge/plugin.py.
 
-THREAD_DEBUG = 5                        # New THREAD_DEBUG logging level.
+THREADDEBUG = 5                         # New THREADDEBUG logging level.
 DATA = 15                               # New DATA logging level.
 
 # ASCII escape sequences for text attributes and colors:
@@ -69,7 +69,7 @@ esc = {'normal':     '\033[0m',  'bright': '\033[1m',  'dim':     '\033[2m',
        'yellow':     '\033[33m', 'blue':   '\033[34m', 'magenta': '\033[35m',
        'cyan':       '\033[36m', 'white':  '\033[37m'}
 
-colors = {THREAD_DEBUG: 'magenta', DEBUG: 'green', INFO: '', DATA: '',
+colors = {THREADDEBUG: 'magenta', DEBUG: 'green', INFO: '', DATA: '',
           WARNING: 'yellow', ERROR: 'red', CRITICAL: 'red'}
 
 
@@ -89,7 +89,9 @@ def getLogger(name):
 
 class ColortextLogger(logging.LoggerAdapter):
     """
+    **************************** needs work ***********************************
     """
+
     def __init__(self, logger, extra=None):
         if extra is None:
             extra = {'extra': ''}
@@ -97,8 +99,8 @@ class ColortextLogger(logging.LoggerAdapter):
 
     # New methods for ColortextLogger:
 
-    def thread(self, message, *args, **kwargs):
-        self.log(THREAD_DEBUG, message, *args, **kwargs)
+    def threaddebug(self, message, *args, **kwargs):
+        self.log(THREADDEBUG, message, *args, **kwargs)
 
     def data(self, message, *args, **kwargs):
         self.log(DATA, message, *args, **kwargs)

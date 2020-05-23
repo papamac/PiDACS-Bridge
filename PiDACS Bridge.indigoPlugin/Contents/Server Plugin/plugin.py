@@ -1,3 +1,4 @@
+# coding=utf-8
 """
  PACKAGE:  indigo plugin interface to PiDACS (PiDACS-Bridge)
   MODULE:  plugin.py
@@ -7,8 +8,8 @@ FUNCTION:  plugin is a PiDACS client that can connect to multiple PiDACS
            device objects.
    USAGE:  plugin.py is included in a standard indigo plugin bundle.
   AUTHOR:  papamac
- VERSION:  1.1.4
-    DATE:  May 15, 2020
+ VERSION:  1.1.6
+    DATE:  May 23, 2020
 
 
 MIT LICENSE:
@@ -47,9 +48,10 @@ modules colortext and messagesocket (and __init__.py) must be included in the
 bundle.
 
 """
+
 __author__ = u'papamac'
-__version__ = u'1.1.4'
-__date__ = u'May 15, 2020'
+__version__ = u'1.1.6'
+__date__ = u'May 23, 2020'
 
 from logging import addLevelName, getLogger, NOTSET
 from random import choice
@@ -57,7 +59,7 @@ from socket import gaierror, gethostbyname
 from time import sleep
 
 import indigo
-from papamaclib.colortext import THREAD_DEBUG, DATA
+from papamaclib.colortext import DATA
 from papamaclib.messagesocket import set_logger, MessageSocket, STATUS_INTERVAL
 
 
@@ -77,10 +79,13 @@ PORT_TYPES = (u'ab', u'ga', u'gb', u'gp')
 
 class PluginServer(MessageSocket):
     """
+    **************************** needs work ***********************************
     """
+
     # Private method:
 
     def __init__(self, dev, *args, **kwargs):
+        LOG.threaddebug(u'PluginServer.__init__ called "%s"', dev.name)
         MessageSocket.__init__(self, dev.name, *args, **kwargs)
         self._dev = dev
         self._server = dev.pluginProps[u'serverAddress']
@@ -89,7 +94,7 @@ class PluginServer(MessageSocket):
     # Public methods:
 
     def run(self):
-        LOG.log(THREAD_DEBUG, u'run called "%s"', self._dev.name)
+        LOG.threaddebug(u'PluginServer.run called "%s"', self._dev.name)
         self.running = True
 
         # Connect to PiDACS server.
@@ -113,7 +118,8 @@ class PluginServer(MessageSocket):
             else:
                 sleepTime = 600
                 messageTime = u'10 minutes'
-            LOG.error(u'will try connecting again in %s', messageTime)
+            LOG.error(u'PluginServer.run: will try connecting again in %s',
+                      messageTime)
             for i in range(sleepTime):
                 if not self.running:
                     return
@@ -138,19 +144,24 @@ class PluginServer(MessageSocket):
 
         # Start message processing run loop.
 
-        LOG.log(THREAD_DEBUG, u'starting run loop "%s"', self._dev.name)
+        LOG.threaddebug(u'PluginServer.run: starting run loop "%s"',
+                        self._dev.name)
         while self.running:
             message = self.recv()
             if message and self._process_message:
                 self._process_message(self._reference_name, message)
-        LOG.log(THREAD_DEBUG, u'run loop ended "%s"', self._dev.name)
+        LOG.threaddebug(u'PluginServer.run: run loop ended "%s"',
+                        self._dev.name)
 
     def sendRequest(self, *args):
-        LOG.log(THREAD_DEBUG, u'sendRequest called "%s"', self._dev.name)
+        LOG.threaddebug(u'sendRequest called "%s"', self._dev.name)
         self.send(u' '.join((str(arg) for arg in args)))
 
 
 class Plugin(indigo.PluginBase):
+    """
+    **************************** needs work ***********************************
+    """
 
     # Class attribute:
 
@@ -162,17 +173,16 @@ class Plugin(indigo.PluginBase):
                  pluginVersion, pluginPrefs):
         super(Plugin, self).__init__(pluginId, pluginDisplayName,
                                      pluginVersion, pluginPrefs)
-
         global PLUGIN
         PLUGIN = self
-
-        addLevelName(THREAD_DEBUG, 'THREAD_DEBUG')
         addLevelName(DATA, 'DATA')
         self.indigo_log_handler.setLevel(NOTSET)
         LOG.setLevel(pluginPrefs[u'loggingLevel'])
+        LOG.threaddebug(u'Plugin.__init__ called')
         LOG.debug(pluginPrefs)
 
     def __del__(self):
+        LOG.threaddebug(u'Plugin.__del__ called')
         indigo.PluginBase.__del__(self)
 
     # Public class methods that are accessible from instances of both the
@@ -180,7 +190,7 @@ class Plugin(indigo.PluginBase):
 
     @classmethod
     def startServer(cls, dev):
-        LOG.log(THREAD_DEBUG, u'startServer called "%s"', dev.name)
+        LOG.threaddebug(u'Plugin.startServer called "%s"', dev.name)
         server = PluginServer(dev, disconnected=cls.disconnected,
                               process_message=cls.processMessage,
                               recv_timeout=SERVER_TIMEOUT)
@@ -189,7 +199,7 @@ class Plugin(indigo.PluginBase):
 
     @classmethod
     def startDevice(cls, dev):
-        LOG.log(THREAD_DEBUG, u'startDevice called "%s"', dev.name)
+        LOG.threaddebug(u'Plugin.startDevice called "%s"', dev.name)
         serverName = dev.pluginProps[u'serverName']
         server = cls._servers.get(serverName)
         if server and server.connected and server.running:
@@ -227,7 +237,7 @@ class Plugin(indigo.PluginBase):
 
     @classmethod
     def disconnected(cls, serverName):
-        LOG.log(THREAD_DEBUG, u'disconnected called "%s"', serverName)
+        LOG.threaddebug(u'Plugin.disconnected called "%s"', serverName)
         dev = indigo.devices[serverName]
         dev.setErrorStateOnServer(u'Disconnected')
         for dev_ in indigo.devices.iter(u'self'):
@@ -238,7 +248,7 @@ class Plugin(indigo.PluginBase):
 
     @classmethod
     def processMessage(cls, serverName, message):
-        LOG.log(THREAD_DEBUG, u'processMessage called')
+        LOG.threaddebug(u'Plugin.processMessage called')
         messageSplit = message.split()
         level = int(messageSplit[0])
         LOG.log(level, u'received "%s" %s', serverName, message[3:])
@@ -257,8 +267,9 @@ class Plugin(indigo.PluginBase):
                     try:
                         sensorValue = float(value)
                     except ValueError:
-                        LOG.error(u'invalid analog value "%s" for channel '
-                                  u'"%s"', value, channelId)
+                        LOG.error(u'Plugin.processMessage: invalid analog '
+                                  u'value "%s" for channel "%s"', value,
+                                  channelId)
                         return
                     units = dev.pluginProps[u'units']
                     if units[0] in (u'm', u'µ', u'°'):
@@ -272,8 +283,8 @@ class Plugin(indigo.PluginBase):
                              uiValue)
                 else:
                     if value not in (u'0', u'1'):
-                        LOG.error(u'invalid bit value "%s" for channel "%s"',
-                                  value, channelId)
+                        LOG.error(u'Plugin.processMessage: invalid bit value '
+                                  u'"%s" for channel "%s"', value, channelId)
                         return
                     state = u'on' if value == u'1' else u'off'
                     dev.updateStateOnServer(u'onOffState', state)
@@ -281,27 +292,27 @@ class Plugin(indigo.PluginBase):
                         indigo.kStateImageSel.Auto)
                     LOG.info(u'received "%s" update to "%s"', dev.name, state)
             else:
-                if PLUGIN.pluginPrefs[u'logStateChanges']:
-                    LOG.warning(u'received "%s" state change on unassigned '
-                                u'device %s', serverName, devName)
+                if PLUGIN.pluginPrefs[u'logUnexpectedData']:
+                    LOG.warning(u'received "%s" unexpected DATA message %s ',
+                                serverName, message[3:])
 
     # Indigo plugin.py standard public instance methods:
 
     def startup(self):
-        LOG.log(THREAD_DEBUG, u'startup called')
+        LOG.threaddebug(u'Plugin.startup called')
 
     def shutdown(self):
-        LOG.log(THREAD_DEBUG, u'shutdown called')
+        LOG.threaddebug(u'Plugin.shutdown called')
 
     def validatePrefsConfigUi(self, valuesDict):
-        LOG.log(THREAD_DEBUG, u'validatePrefsConfigUi called')
+        LOG.threaddebug(u'Plugin.validatePrefsConfigUi called')
         LOG.setLevel(valuesDict[u'loggingLevel'])
         return True, valuesDict
 
     def validateDeviceConfigUi(self, valuesDict, typeId, devId):
         dev = indigo.devices[devId]
-        LOG.log(THREAD_DEBUG, u'validateDeviceConfigUi called "%s"; configured'
-                              u' = %s', dev.name, dev.configured)
+        LOG.threaddebug(u'Plugin.validateDeviceConfigUi called "%s"; '
+                        u'configured = %s', dev.name, dev.configured)
         values = valuesDict
         errors = indigo.Dict()
 
@@ -381,29 +392,30 @@ class Plugin(indigo.PluginBase):
             return True, values
 
     def getServers(self, filter="", valuesDict=None, typeId="", targetId=0):
-        LOG.log(THREAD_DEBUG, u'getServers called')
+        LOG.threaddebug(u'Plugin.getServers called')
         servers = []
         for dev in indigo.devices.iter(u'self.server'):
             servers.append(dev.name)
         return sorted(servers)
 
     def didDeviceCommPropertyChange(self, dev, newDev):
-        LOG.log(THREAD_DEBUG, u'didDeviceCommPropertyChange called; old = '
-                              u'"%s", new = "%s"', dev.name, newDev.name)
+        LOG.threaddebug(u'Plugin.didDeviceCommPropertyChange called; old = '
+                        u'"%s", new = "%s"', dev.name, newDev.name)
         change = (dev.name != newDev.name
                   or dev.deviceTypeId != newDev.deviceTypeId
                   or dev.pluginProps != newDev.pluginProps)
-        LOG.log(THREAD_DEBUG, u'change = %s', change)
+        LOG.threaddebug(u'change = %s', change)
         return change
 
     def deviceStartComm(self, dev):
-        LOG.log(THREAD_DEBUG, u'deviceStartComm called "%s"', dev.name)
+        LOG.threaddebug(u'Plugin.deviceStartComm called "%s"', dev.name)
         if dev.subModel != u'PiDACS':
             dev.subModel = u'PiDACS'
             dev.replaceOnServer()
         if u' ' in dev.name:
-            warning = (u'startup for device "%s" deferred until final device '
-                       u'name (no spaces) is specified' % dev.name)
+            warning = (u'Plugin.deviceStartComm: startup for device "%s" '
+                       u'deferred until final device name is specified'
+                       % dev.name)
             LOG.warning(warning)
         else:
             if dev.deviceTypeId == u'server':
@@ -412,7 +424,7 @@ class Plugin(indigo.PluginBase):
                 self.startDevice(dev)
 
     def deviceStopComm(self, dev):
-        LOG.log(THREAD_DEBUG, u'deviceStopComm called "%s"', dev.name)
+        LOG.threaddebug(u'Plugin.deviceStopComm called "%s"', dev.name)
         if dev.deviceTypeId == u'server':
             server = self._servers.get(dev.name)
             if server and server.connected and server.running:
@@ -432,7 +444,7 @@ class Plugin(indigo.PluginBase):
         LOG.info(u'stopped "%s"', dev.name)
 
     def actionControlDevice(self, action, dev):
-        LOG.log(THREAD_DEBUG, u'actionControlDevice called "%s"', dev.name)
+        LOG.threaddebug(u'Plugin.actionControlDevice called "%s"', dev.name)
         if action.deviceAction == indigo.kDeviceAction.TurnOn:
             value = 1
             action = u'"on"'
@@ -455,11 +467,11 @@ class Plugin(indigo.PluginBase):
             server.sendRequest(dev.name, requestId, value)
             LOG.info(u'sent "%s" %s', dev.name, action)
         else:
-            LOG.error(u'server "%s" not running; "%s" %s request ignored',
-                      serverName, dev.name, action)
+            LOG.error(u'Plugin.actionControlDevice: server "%s" not running; '
+                      u'"%s" %s request ignored', serverName, dev.name, action)
 
     def actionControlUniversal(self, action, dev):
-        LOG.log(THREAD_DEBUG, u'actionControlUniversal called "%s"', dev.name)
+        LOG.threaddebug(u'Plugin.actionControlUniversal called "%s"', dev.name)
         if action.deviceAction == indigo.kUniversalAction.RequestStatus:
             serverName = dev.pluginProps[u'serverName']
             server = self._servers.get(serverName)
@@ -467,5 +479,6 @@ class Plugin(indigo.PluginBase):
                 server.sendRequest(dev.name, u'read')
                 LOG.info(u'sent "%s" status request', dev.name)
             else:
-                LOG.error(u'server "%s" not running; "%s" status request '
-                          u'ignored', serverName, dev.name)
+                LOG.error(u'Plugin.actionControlUniversal: server "%s" not '
+                          u'running; "%s" status request ignored', serverName,
+                          dev.name)

@@ -1,12 +1,24 @@
 <?xml version="1.0"?>
+<!--
+ PACKAGE:  indigo plugin interface to PiDACS (PiDACS-Bridge)
+  MODULE:  PluginConfig.xml
+   TITLE:  Define and initialize PiDACS-Bridge options (PluginConfig.xml)
+FUNCTION:  PluginConfig.xml defines the structure of the PiDACS-Bridge
+           configuration GUI, specifies GUI labels, and sets default values.
+   USAGE:  PluginConfig.xml is read by the indigo server during plugin startup.
+  AUTHOR:  papamac
+ VERSION:  1.0.0
+    DATE:  May 23, 2020
+-->
+
 <PluginConfig>
 
-    <Field type="label" id="title" alignText="center" fontColor="blue">
+    <Field type="label" id="title" alignText="center">
         <Label>Operating Settings</Label>
     </Field>
 
-    <Field type="checkbox" id="logStateChanges" defaultValue="false">
-        <Label>Log State Changes on Unassigned Devices:</Label>
+    <Field type="checkbox" id="logUnexpectedData" defaultValue="false">
+        <Label>Log Unexpected Data Messages:</Label>
     </Field>
 
     <Field type="checkbox" id="restartClear" defaultValue="false">
@@ -16,7 +28,7 @@
     <Field type="menu" id="loggingLevel" defaultValue="INFO">
         <Label>Logging Level:</Label>
         <List>
-            <Option value="THREAD_DEBUG">Thread Debug</Option>
+            <Option value="THREADDEBUG">Thread Debug</Option>
             <Option value="DEBUG">Debug</Option>
             <Option value="DATA">Data</Option>
             <Option value="INFO">Info</Option>
