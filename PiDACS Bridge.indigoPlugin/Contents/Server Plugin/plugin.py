@@ -8,8 +8,8 @@ FUNCTION:  plugin is a PiDACS client that can connect to multiple PiDACS
            device objects.
    USAGE:  plugin.py is included in a standard indigo plugin bundle.
   AUTHOR:  papamac
- VERSION:  1.1.6
-    DATE:  May 23, 2020
+ VERSION:  1.2.0
+    DATE:  May 27, 2020
 
 
 MIT LICENSE:
@@ -50,8 +50,8 @@ bundle.
 """
 
 __author__ = u'papamac'
-__version__ = u'1.1.6'
-__date__ = u'May 23, 2020'
+__version__ = u'1.2.0'
+__date__ = u'May 27, 2020'
 
 from logging import addLevelName, getLogger, NOTSET
 from random import choice
@@ -369,8 +369,10 @@ class Plugin(indigo.PluginBase):
                         and channelName[2:].isdecimal()):
                     for dev_ in indigo.devices.iter(u'self'):
                         if (dev_.id != devId
-                                and dev_.pluginProps.get(u'serverName') == serverName
-                                and dev_.pluginProps.get(u'channelName') == channelName):
+                                and (dev_.pluginProps.get(u'serverName')
+                                     == serverName)
+                                and (dev_.pluginProps.get(u'channelName')
+                                     == channelName)):
                             errors[u'channelName'] = (u'Channel name already '
                                                       u'in use; choose again.')
                             break
@@ -425,23 +427,26 @@ class Plugin(indigo.PluginBase):
 
     def deviceStopComm(self, dev):
         LOG.threaddebug(u'Plugin.deviceStopComm called "%s"', dev.name)
-        if dev.deviceTypeId == u'server':
-            server = self._servers.get(dev.name)
-            if server and server.connected and server.running:
-                for dev_ in indigo.devices.iter(u'self'):
-                    if dev_.pluginProps.get(u'serverName') == dev.name:
-                        server.sendRequest(dev_.name, u'reset')
-                        dev_.setErrorStateOnServer(u'Server')
-                server.stop()
-                del self._servers[dev.name]
-                dev.updateStateOnServer(key=u'status', value=u'Stopped')
-                dev.updateStateImageOnServer(indigo.kStateImageSel.SensorOff)
-        else:
-            serverName = dev.pluginProps[u'serverName']
-            server = self._servers.get(serverName)
-            if server and server.connected and server.running:
-                server.sendRequest(dev.name, u'reset')
-        LOG.info(u'stopped "%s"', dev.name)
+        if ' ' not in dev.name:  # Stop device only if it was started.
+            if dev.deviceTypeId == u'server':
+                server = self._servers.get(dev.name)
+                if server and server.connected and server.running:
+                    for dev_ in indigo.devices.iter(u'self'):
+                        if dev_.pluginProps.get(u'serverName') == dev.name:
+                            server.sendRequest(dev_.name, u'reset')
+                            dev_.setErrorStateOnServer(u'Server')
+                    server.stop()
+                    del self._servers[dev.name]
+                    dev.updateStateOnServer(key=u'status', value=u'Stopped')
+                    dev.updateStateImageOnServer(indigo.kStateImageSel.
+                                                 SensorOff)
+            else:
+                serverName = dev.pluginProps[u'serverName']
+                server = self._servers.get(serverName)
+                if server and server.connected and server.running:
+                    server.sendRequest(dev.name, u'reset')
+                    sleep(1)  # Wait for reset to be executed on the server.
+            LOG.info(u'stopped "%s"', dev.name)
 
     def actionControlDevice(self, action, dev):
         LOG.threaddebug(u'Plugin.actionControlDevice called "%s"', dev.name)
