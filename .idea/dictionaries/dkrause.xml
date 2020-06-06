@@ -5,17 +5,29 @@
       <w>colortext</w>
       <w>dacs</w>
       <w>darkgray</w>
+      <w>dutycycle</w>
       <w>errno</w>
+      <w>fqdn</w>
+      <w>gpio</w>
+      <w>gpxx</w>
+      <w>indigoplugin</w>
       <w>iomgr</w>
       <w>isanumber</w>
       <w>krause</w>
       <w>messagesocket</w>
+      <w>microamps</w>
+      <w>microvolts</w>
+      <w>microwatts</w>
+      <w>miliamps</w>
+      <w>milivolts</w>
+      <w>miliwatts</w>
       <w>noninfringement</w>
       <w>papamac</w>
       <w>papamaclib</w>
       <w>pidacs</w>
       <w>prefs</w>
       <w>pullup</w>
+      <w>raspi</w>
       <w>recv</w>
       <w>recvd</w>
       <w>strerr</w>

@@ -7,8 +7,8 @@ FUNCTION:  Devices.xml defines the structure of the PiDACS-Bridge device
            objects, specifies GUI labels, and sets default values.
    USAGE:  Devices.xml is read by the indigo server during plugin startup.
   AUTHOR:  papamac
- VERSION:  1.0.0
-    DATE:  May 23, 2020
+ VERSION:  1.0.8
+    DATE:  June 4, 2020
 -->
 
 <Devices>
@@ -106,19 +106,20 @@ FUNCTION:  Devices.xml defines the structure of the PiDACS-Bridge device
                 </List>
             </Field>
 
-            <Field id="scaling" type="textfield" defaultValue="Default">
+            <Field id="scaling" type="textfield" defaultValue="2.47058824">
                 <Label>Scaling Factor:</Label>
 
             </Field>
 
             <Field id="label2" type="label" fontSize="small"
                    fontColor="darkgray" alignWithControl="true">
-                <Label>The Scaling Factor is used to calibrate an analog input device for a specific application.  It is an integer or floating point number tha multiplies all values read from the ADC.  Specifying "Default" uses the default value for the PiDACS device.</Label>
+                <Label>The Scaling Factor is used to calibrate an analog input device for a specific application.  It is an integer or floating point number tha multiplies all values read from the ADC.  The default value is for voltage measurements using the AB Electronics ADC Pi board.</Label>
             </Field>
 
-            <Field id="units" type="menu" defaultValue="V">
+            <Field id="units" type="menu" defaultValue=" ">
                 <Label>Analog Value Units:</Label>
                 <List>
+                    <Option value=" ">None</Option>
                     <Option value="V">Volts (V)</Option>
                     <Option value="mV">Milivolts (mV)</Option>
                     <Option value="µV">Microvolts (µV)</Option>
@@ -131,34 +132,27 @@ FUNCTION:  Devices.xml defines the structure of the PiDACS-Bridge device
                     <Option value="°F">Degrees Fahrenheit (°F)</Option>
                     <Option value="°C">Degrees Celsius (°C)</Option>
                 </List>
-
             </Field>
 
             <Field id="separator2" type="separator"> </Field>
 
             <Field id="change" type="textfield" defaultValue="0">
-                <Label>Change Reporting Percentage:</Label>
+                <Label>Update on Percentage Change:</Label>
             </Field>
 
             <Field id="label3" type="label" fontSize="small"
                    fontColor="darkgray" alignWithControl="true">
-                <Label>Update the sensor value on the server whenever the analog input changes by the specified percentage.  It may be an integer or floating point value less than or equal to 10%.</Label>
+                <Label>Update the sensor value whenever the analog input changes by more than the specified percentage.  The default value of 0 indicates no update on change</Label>
             </Field>
 
-            <Field id="periodic" type="checkbox" defaultValue="false">
-                <Label>Update Periodically:</Label>
+            <Field id="interval" type="textfield" defaultValue="0">
+                <Label>Update on Interval (sec):</Label>
             </Field>
 
             <Field id="label4" type="label" fontSize="small"
                    fontColor="darkgray" alignWithControl="true">
-                <Label>Update the channel state on a regular periodic basis.</Label>
+                <Label>Update the sensor value on a regular interval independently of update on change.  The default value of 0 indicates no update on interval.</Label>
             </Field>
-
-            <Field id="interval" type="textfield" defaultValue="60">
-                <Label>Periodic Update Interval (sec):</Label>
-            </Field>
-
-
 
         </ConfigUI>
     </Device>
@@ -179,17 +173,17 @@ FUNCTION:  Devices.xml defines the structure of the PiDACS-Bridge device
                       dynamicReload="yes"/>
             </Field>
 
-            <Field id="channelName" type="textfield" defaultValue="gg17">
+            <Field id="channelName" type="textfield" defaultValue="gp17">
                 <Label>Channel Hardware Name:</Label>
             </Field>
 
             <Field id="separator1" type="separator"> </Field>
 
-            <Field id="polarity" type="menu" defaultValue="0">
+            <Field id="polarity" type="menu" defaultValue="normal">
                 <Label>Logic Polarity:</Label>
                 <List>
-                    <Option value="0">Normal</Option>
-                    <Option value="1">Inverted</Option>
+                    <Option value="normal">Normal</Option>
+                    <Option value="inverted">Inverted</Option>
                 </List>
             </Field>
 
@@ -198,18 +192,18 @@ FUNCTION:  Devices.xml defines the structure of the PiDACS-Bridge device
                 <Label>Normal: device state is set to "off" for logic low and to "on" for logic high. Inverted: device state is set to "on" for logic low and to "off" for logic high.</Label>
             </Field>
 
-            <Field id="pullup" type="menu" defaultValue="0">
+            <Field id="pullup" type="menu" defaultValue="off">
                 <Label>Internal Input Bias:</Label>
                 <List>
-                    <Option value="0">Open (no bias)</Option>
-                    <Option value="1">Pull up to logic high</Option>
-                    <Option value="2">Pull down to logic low</Option>
+                    <Option value="off">Open (no bias)</Option>
+                    <Option value="up">Pull up to logic high</Option>
+                    <Option value="down">Pull down to logic low</Option>
                 </List>
             </Field>
 
             <Field id="label2" type="label" fontSize="small"
                    fontColor="darkgray" alignWithControl="true">
-                <Label>Open applies no bias to the digital input. Pull up or down biases the input to logic high or low through an internal resistor. Pull down is only available for Raspberry Pi built-in GPIO channels (ggxx or gpxx). Use pull up to directly connect push butttons, relays, or dry-contact switches to an input channel.
+                <Label>Open applies no bias to the digital input. Pull up or down biases the input to logic high or low through an internal resistor. Pull down is only available for Raspberry Pi built-in GPIO channels (gpxx). Use pull up to directly connect push buttons, relays, or dry-contact switches to an input channel.
                 </Label>
             </Field>
 
@@ -221,20 +215,16 @@ FUNCTION:  Devices.xml defines the structure of the PiDACS-Bridge device
 
             <Field id="label3" type="label" fontSize="small"
                    fontColor="darkgray" alignWithControl="true">
-                <Label>Update the channel state on the server whenever a change occurs.</Label>
+                <Label>Update the channel state whenever a change occurs.</Label>
             </Field>
 
-            <Field id="periodic" type="checkbox" defaultValue="false">
-                <Label>Update Periodically:</Label>
+            <Field id="interval" type="textfield" defaultValue="0">
+                <Label>Update on Interval (sec):</Label>
             </Field>
 
             <Field id="label4" type="label" fontSize="small"
                    fontColor="darkgray" alignWithControl="true">
-                <Label>Update the channel state on a regular periodic basis.</Label>
-            </Field>
-
-            <Field id="interval" type="textfield" defaultValue="60">
-                <Label>Periodic Update Interval (sec):</Label>
+                <Label>Update the channel state on a regular interval independently of update on change.  The default value of 0 indicates no update on interval.</Label>
             </Field>
 
         </ConfigUI>
@@ -256,7 +246,7 @@ FUNCTION:  Devices.xml defines the structure of the PiDACS-Bridge device
                       dynamicReload="yes"/>
             </Field>
 
-            <Field id="channelName" type="textfield" defaultValue="gg05">
+            <Field id="channelName" type="textfield" defaultValue="gp05">
                 <Label>Channel hardware name:</Label>
             </Field>
 
@@ -289,20 +279,64 @@ FUNCTION:  Devices.xml defines the structure of the PiDACS-Bridge device
 
             <Field id="label3" type="label" fontSize="small"
                    fontColor="darkgray" alignWithControl="true">
-                <Label>Update the channel state from the server whenever a change occurs.</Label>
+                <Label>Update the channel state whenever a change occurs.</Label>
             </Field>
 
-            <Field id="periodic" type="checkbox" defaultValue="false">
-                <Label>Update Periodically:</Label>
+            <Field id="interval" type="textfield" defaultValue="0">
+                <Label>Update on Interval (sec):</Label>
             </Field>
 
             <Field id="label4" type="label" fontSize="small"
                    fontColor="darkgray" alignWithControl="true">
-                <Label>Update the channel state from the server periodically at the specified interval (seconds).</Label>
+                <Label>Update the channel state on a regular interval independently of update on change.  The default value of 0 indicates no update on interval.</Label>
             </Field>
 
-            <Field id="interval" type="textfield" defaultValue="60">
-                <Label>Periodic Update Interval (sec):</Label>
+        </ConfigUI>
+    </Device>
+
+    <!-- ################# Pulse Width Modulation Device  ################# -->
+
+    <Device id="pwmOutput" type="relay">
+        <Name>PWM Output</Name>
+        <ConfigUI>
+
+            <Field id="subModel" type="textfield" hidden="true"
+                   defaultValue="PiDACS">
+            </Field>
+
+            <Field id="serverName" type="menu">
+                <Label>PiDACS server name:</Label>
+                <List class="self" method="getServers"
+                      dynamicReload="yes"/>
+            </Field>
+
+            <Field id="channelName" type="textfield" defaultValue="gp05">
+                <Label>Channel hardware name:</Label>
+            </Field>
+
+            <Field id="separator1" type="separator"> </Field>
+
+            <Field id="label1" type="label" fontSize="small"
+                   fontColor="darkgray" alignWithControl="true">
+                <Label>Pulse Width Modulation (PWM), once started, sends a continuous sequence of output pulses until it is stopped.  The pulse rate and pulse width are determined by the frequency and duty cycle.  This capability is only available on the Raspberry Pi GPIO channels (gpxx).</Label>
+            </Field>
+
+            <Field id="frequency" type="textfield" defaultValue="1">
+                <Label>Pulse Frequency (Hz):</Label>
+            </Field>
+
+            <Field id="label2" type="label" fontSize="small"
+                   fontColor="darkgray" alignWithControl="true">
+                <Label>The software PWM implementation imposes a practical frequency limitation of 500 -1000 Hz.</Label>
+            </Field>
+
+            <Field id="dutycycle" type="textfield" defaultValue="50">
+                <Label>Pulse Duty Cycle (%):</Label>
+            </Field>
+
+            <Field id="label3" type="label" fontSize="small"
+                   fontColor="darkgray" alignWithControl="true">
+                <Label>The duty cycle is the percentage of the pulse cycle time spent in the "on" state.</Label>
             </Field>
 
         </ConfigUI>
