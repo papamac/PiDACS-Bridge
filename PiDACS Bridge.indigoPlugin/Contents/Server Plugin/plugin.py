@@ -8,7 +8,7 @@ FUNCTION:  plugin is a PiDACS client that can connect to multiple PiDACS
            device objects.
    USAGE:  plugin.py is included in a standard indigo plugin bundle.
   AUTHOR:  papamac
- VERSION:  1.5.0
+ VERSION:  1.5.2
     DATE:  June 8, 2020
 
 
@@ -50,7 +50,7 @@ bundle.
 """
 
 __author__ = u'papamac'
-__version__ = u'1.5.0'
+__version__ = u'1.5.2'
 __date__ = u'June 8, 2020'
 
 from logging import addLevelName, getLogger, NOTSET
@@ -102,6 +102,7 @@ class PluginServer(MessageSocket):
 
         # Connect to PiDACS server.
 
+        sleep(2)
         connectionErrors = 0
         while self.running:
             self.connect_to_server(self._server, self._portNumber)
