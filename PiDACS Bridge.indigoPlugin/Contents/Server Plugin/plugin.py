@@ -2,14 +2,14 @@
 """
  PACKAGE:  indigo plugin interface to PiDACS (PiDACS-Bridge)
   MODULE:  plugin.py
-   TITLE:  primary Python module in the PiDACS indigo plugin bundle (plugin)
+   TITLE:  primary Python module in the PiDACS indigo plugin bundle
 FUNCTION:  plugin is a PiDACS client that can connect to multiple PiDACS
            servers (instances of pidacs) and interface with indigo GUIs and
            device objects.
    USAGE:  plugin.py is included in a standard indigo plugin bundle.
   AUTHOR:  papamac
- VERSION:  1.5.2
-    DATE:  June 8, 2020
+ VERSION:  1.5.3
+    DATE:  November 18, 2020
 
 
 MIT LICENSE:
@@ -50,8 +50,8 @@ bundle.
 """
 
 __author__ = u'papamac'
-__version__ = u'1.5.2'
-__date__ = u'June 8, 2020'
+__version__ = u'1.5.3'
+__date__ = u'November 18, 2020'
 
 from logging import addLevelName, getLogger, NOTSET
 from random import choice
@@ -181,11 +181,6 @@ class Plugin(indigo.PluginBase):
                                      pluginVersion, pluginPrefs)
         global PLUGIN
         PLUGIN = self
-        addLevelName(DATA, 'DATA')
-        self.indigo_log_handler.setLevel(NOTSET)
-        LOG.setLevel(pluginPrefs[u'loggingLevel'])
-        LOG.threaddebug(u'Plugin.__init__ called')
-        LOG.debug(pluginPrefs)
 
     def __del__(self):
         LOG.threaddebug(u'Plugin.__del__ called')
@@ -293,14 +288,20 @@ class Plugin(indigo.PluginBase):
     # Indigo plugin.py standard public instance methods:
 
     def startup(self):
+        addLevelName(DATA, 'DATA')
+        self.indigo_log_handler.setLevel(NOTSET)
+        level = self.pluginPrefs[u'loggingLevel']
+        LOG.setLevel(u'THREADDEBUG' if level == u'THREAD' else level)
         LOG.threaddebug(u'Plugin.startup called')
+        LOG.debug(self.pluginPrefs)
 
     def shutdown(self):
         LOG.threaddebug(u'Plugin.shutdown called')
 
     def validatePrefsConfigUi(self, valuesDict):
         LOG.threaddebug(u'Plugin.validatePrefsConfigUi called')
-        LOG.setLevel(valuesDict[u'loggingLevel'])
+        level = valuesDict[u'loggingLevel']
+        LOG.setLevel(u'THREADDEBUG' if level == u'THREAD' else level)
         return True, valuesDict
 
     def validateDeviceConfigUi(self, valuesDict, typeId, devId):

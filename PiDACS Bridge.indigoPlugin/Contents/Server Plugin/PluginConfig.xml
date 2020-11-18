@@ -28,7 +28,7 @@ FUNCTION:  PluginConfig.xml defines the structure of the PiDACS-Bridge
     <Field type="menu" id="loggingLevel" defaultValue="INFO">
         <Label>Logging Level:</Label>
         <List>
-            <Option value="THREADDEBUG">Thread Debug</Option>
+            <Option value="THREAD">Thread Debug</Option>
             <Option value="DEBUG">Debug</Option>
             <Option value="DATA">Data</Option>
             <Option value="INFO">Info</Option>
@@ -40,8 +40,8 @@ FUNCTION:  PluginConfig.xml defines the structure of the PiDACS-Bridge
 
     <Field type="label" id="thread" alignWithControl="true"
            fontColor="darkgray"
-           visibleBindingId="loggingLevel" visibleBindingValue="5">
-        <Label>Log method calls and higher</Label>
+           visibleBindingId="loggingLevel" visibleBindingValue="THREAD">
+        <Label>Log threaddebug messages and higher</Label>
     </Field>
 
     <Field type="label" id="debug" alignWithControl="true" fontColor="darkgray"
@@ -49,9 +49,14 @@ FUNCTION:  PluginConfig.xml defines the structure of the PiDACS-Bridge
         <Label>Log debug messages and higher</Label>
     </Field>
 
+    <Field type="label" id="data" alignWithControl="true" fontColor="darkgray"
+           visibleBindingId="loggingLevel" visibleBindingValue="DATA">
+        <Label>Log data messages and higher</Label>
+    </Field>
+
     <Field type="label" id="info" alignWithControl="true" fontColor="darkgray"
            visibleBindingId="loggingLevel" visibleBindingValue="INFO">
-        <Label>Log operating messages and higher</Label>
+        <Label>Log info messages and higher</Label>
     </Field>
 
     <Field type="label" id="warning" alignWithControl="true"
