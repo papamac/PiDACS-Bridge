@@ -8,8 +8,8 @@ FUNCTION:  plugin is a PiDACS client that can connect to multiple PiDACS
            device objects.
    USAGE:  plugin.py is included in a standard indigo plugin bundle.
   AUTHOR:  papamac
- VERSION:  1.5.3
-    DATE:  November 18, 2020
+ VERSION:  1.5.5
+    DATE:  December 26, 2020
 
 
 MIT LICENSE:
@@ -257,8 +257,7 @@ class Plugin(indigo.PluginBase):
                         sensorValue = float(value)
                     except ValueError:
                         LOG.error(u'Plugin.processMessage: invalid analog '
-                                  u'value "%s" for channel "%s"', value,
-                                  channelId)
+                                  u'value %s for channel %s', value, channelId)
                         return
                     units = u''
                     fmt = u'%4.2f %s'
@@ -269,17 +268,16 @@ class Plugin(indigo.PluginBase):
                     uiValue = fmt % (sensorValue, units)
                     dev.updateStateOnServer(u'sensorValue', sensorValue,
                                             uiValue=uiValue)
-                    LOG.info(u'received "%s" update to "%s"', dev.name,
-                             uiValue)
+                    LOG.info(u'received "%s" update to %s', dev.name, uiValue)
                 else:
                     if value not in (u'0', u'1'):
                         LOG.error(u'Plugin.processMessage: invalid bit value '
-                                  u'"%s" for channel "%s"', value, channelId)
+                                  u'%s for channel %s', value, channelId)
                         return
                     state = u'on' if value == u'1' else u'off'
                     dev.updateStateOnServer(u'onOffState', state)
                     dev.updateStateImageOnServer(indigo.kStateImageSel.Auto)
-                    LOG.info(u'received "%s" update to "%s"', dev.name, state)
+                    LOG.info(u'received "%s" update to %s', dev.name, state)
             else:
                 if PLUGIN.pluginPrefs[u'logUnexpectedData']:
                     LOG.warning(u'received "%s" unexpected DATA message %s ',
