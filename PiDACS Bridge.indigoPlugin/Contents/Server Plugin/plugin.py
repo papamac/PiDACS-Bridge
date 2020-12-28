@@ -8,8 +8,8 @@ FUNCTION:  plugin is a PiDACS client that can connect to multiple PiDACS
            device objects.
    USAGE:  plugin.py is included in a standard indigo plugin bundle.
   AUTHOR:  papamac
- VERSION:  1.5.5
-    DATE:  December 26, 2020
+ VERSION:  1.6.2
+    DATE:  December 27, 2020
 
 
 MIT LICENSE:
@@ -47,11 +47,15 @@ papamaclib cannot be externally referenced.  A copy of papamaclib with the
 modules colortext and messagesocket (and __init__.py) must be included in the
 bundle.
 
+CHANGE LOG:
+
+1.6.2   12/27/2020  Change display state names and formats to be consistent
+                    with indigo conventions.
 """
 
 __author__ = u'papamac'
-__version__ = u'1.5.3'
-__date__ = u'November 18, 2020'
+__version__ = u'1.6.2'
+__date__ = u'December 27, 2020'
 
 from logging import addLevelName, getLogger, NOTSET
 from random import choice
@@ -133,7 +137,7 @@ class PluginServer(MessageSocket):
         # Connected; update indigo server states.
 
         self._dev.setErrorStateOnServer(None)
-        self._dev.updateStateOnServer(key=u'status', value=u'Running')
+        self._dev.updateStateOnServer(key=u'status', value=u'running')
         self._dev.updateStateImageOnServer(indigo.kStateImageSel.SensorOn)
         LOG.debug(u'started "%s" using socket "%s"', self._dev.name, self.name)
 
@@ -228,10 +232,10 @@ class Plugin(indigo.PluginBase):
     def disconnected(cls, serverName):
         LOG.threaddebug(u'Plugin.disconnected called "%s"', serverName)
         dev = indigo.devices[serverName]
-        dev.setErrorStateOnServer(u'Disconnected')
+        dev.setErrorStateOnServer(u'disconnected')
         for dev_ in indigo.devices.iter(u'self'):
             if dev_.pluginProps.get(u'serverName') == dev.name:
-                dev_.setErrorStateOnServer(u'Server')
+                dev_.setErrorStateOnServer(u'server')
         LOG.debug(u'stopped "%s"', serverName)
         cls.startServer(dev)
 
@@ -248,7 +252,7 @@ class Plugin(indigo.PluginBase):
             if dev:
                 value = messageSplit[2]
                 if value == u'!ERROR':
-                    dev.setErrorStateOnServer(u'Error')
+                    dev.setErrorStateOnServer(u'error')
                     return
                 if not dev.enabled:
                     return
@@ -260,7 +264,7 @@ class Plugin(indigo.PluginBase):
                                   u'value %s for channel %s', value, channelId)
                         return
                     units = u''
-                    fmt = u'%4.2f %s'
+                    fmt = u'%.2f %s'
                     if len(messageSplit) > 3:
                         units = messageSplit[3]
                         if units[0] in (u'm', u'µ', u'°'):
@@ -268,6 +272,8 @@ class Plugin(indigo.PluginBase):
                     uiValue = fmt % (sensorValue, units)
                     dev.updateStateOnServer(u'sensorValue', sensorValue,
                                             uiValue=uiValue)
+                    dev.updateStateImageOnServer(indigo.
+                                                 kStateImageSel.EnergyMeterOff)
                     LOG.info(u'received "%s" update to %s', dev.name, uiValue)
                 else:
                     if value not in (u'0', u'1'):
@@ -276,7 +282,6 @@ class Plugin(indigo.PluginBase):
                         return
                     state = u'on' if value == u'1' else u'off'
                     dev.updateStateOnServer(u'onOffState', state)
-                    dev.updateStateImageOnServer(indigo.kStateImageSel.Auto)
                     LOG.info(u'received "%s" update to %s', dev.name, state)
             else:
                 if PLUGIN.pluginPrefs[u'logUnexpectedData']:
@@ -436,7 +441,7 @@ class Plugin(indigo.PluginBase):
             warning = (u'Plugin.deviceStartComm: deferred startup "%s"; '
                        u'space(s) in device name' % dev.name)
             LOG.warning(warning)
-            dev.setErrorStateOnServer(u'Name')
+            dev.setErrorStateOnServer(u'name')
         else:
             if dev.deviceTypeId == u'server':
                 self.startServer(dev)
@@ -453,10 +458,10 @@ class Plugin(indigo.PluginBase):
                         if dev_.pluginProps.get(u'serverName') == dev.name:
                             server.sendRequest(
                                 dev_.pluginProps[u'channelName'], u'reset')
-                            dev_.setErrorStateOnServer(u'Server')
+                            dev_.setErrorStateOnServer(u'server')
                     server.stop()
                     del self._servers[dev.name]
-                    dev.updateStateOnServer(key=u'status', value=u'Stopped')
+                    dev.updateStateOnServer(key=u'status', value=u'stopped')
                     dev.updateStateImageOnServer(indigo.kStateImageSel.
                                                  SensorOff)
             else:  # Not a server.
