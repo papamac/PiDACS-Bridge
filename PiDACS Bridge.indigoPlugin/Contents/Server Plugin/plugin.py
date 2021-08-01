@@ -8,13 +8,13 @@ FUNCTION:  plugin is a PiDACS client that can connect to multiple PiDACS
            device objects.
    USAGE:  plugin.py is included in a standard indigo plugin bundle.
   AUTHOR:  papamac
- VERSION:  1.6.2
-    DATE:  December 27, 2020
+ VERSION:  1.6.3
+    DATE:  August 1, 2021
 
 
 MIT LICENSE:
 
-Copyright (c) 2018-2020 David A. Krause, aka papamac
+Copyright (c) 2018-2021 David A. Krause, aka papamac
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -51,11 +51,13 @@ CHANGE LOG:
 
 1.6.2   12/27/2020  Change display state names and formats to be consistent
                     with indigo conventions.
+1.6.3     8/1/2021  Correct errors in generating server requests for universal
+                    actions (turnOn, turnOff, toggle).
 """
 
 __author__ = u'papamac'
-__version__ = u'1.6.2'
-__date__ = u'December 27, 2020'
+__version__ = u'1.6.3'
+__date__ = u'August 1, 2021'
 
 from logging import addLevelName, getLogger, NOTSET
 from random import choice
@@ -291,7 +293,7 @@ class Plugin(indigo.PluginBase):
     # Indigo plugin.py standard public instance methods:
 
     def startup(self):
-        addLevelName(DATA, 'DATA')
+        addLevelName(DATA, u'DATA')
         self.indigo_log_handler.setLevel(NOTSET)
         level = self.pluginPrefs[u'loggingLevel']
         LOG.setLevel(u'THREADDEBUG' if level == u'THREAD' else level)
@@ -474,33 +476,53 @@ class Plugin(indigo.PluginBase):
 
     def actionControlDevice(self, action, dev):
         LOG.threaddebug(u'Plugin.actionControlDevice called "%s"', dev.name)
-        if action.deviceAction == indigo.kDeviceAction.TurnOn:
-            value = u'on'
-            action = u'"on"'
-        elif action.deviceAction == indigo.kDeviceAction.TurnOff:
-            value = u'off'
-            action = u'"off"'
-        elif action.deviceAction == indigo.kDeviceAction.Toggle:
-            value = u'off' if dev.onState else u'on'
-            action = u'"toggle"'
-        else:
-            return
 
-        serverName = dev.pluginProps[u'serverName']
-        server = self._servers.get(serverName)
-        if server and server.connected and server.running:
-            if dev.deviceTypeId == u'digitalOutput':
-                requestId = u'write'
-                if value and dev.pluginProps[u'momentary']:
-                    value = dev.pluginProps[u'turnOffDelay']
+        # Check for valid action/device combinations and define the requestId
+        # and value needed to perform the action on the server.  Invalid
+        # action/device combinations will be left with the requestId and/or
+        # value set to None.
+
+        requestId = value = None
+        if dev.deviceTypeId == u'digitalOutput':
+            if action.deviceAction == indigo.kDeviceAction.TurnOn:
+                if dev.pluginProps[u'momentary']:
                     requestId = u'momentary'
-            else:  # dev.deviceTypeId == u'pwmOutput'
-                requestId = u'pwm'
-            server.sendRequest(dev.name, requestId, value)
-            LOG.info(u'sent "%s" %s', dev.name, action)
+                    value = dev.pluginProps[u'turnOffDelay']
+                else:
+                    requestId = u'write'
+                    value = u'on'
+            elif action.deviceAction == indigo.kDeviceAction.TurnOff:
+                requestId = u'write'
+                value = u'off'
+            elif (action.deviceAction == indigo.kDeviceAction.Toggle
+                  and not dev.pluginProps[u'momentary']):
+                requestId = u'write'
+                value = u'off' if dev.onState else u'on'
+        elif dev.deviceTypeId == u'pwmOutput':
+            requestId = u'pwm'
+            if action.deviceAction == indigo.kDeviceAction.TurnOn:
+                value = u'on'
+            elif action.deviceAction == indigo.kDeviceAction.TurnOff:
+                value = u'off'
+
+        if requestId and value:
+
+            # Valid action requested for the device; check the server status.
+            # Send the request if the server is OK.
+
+            serverName = dev.pluginProps[u'serverName']
+            server = self._servers.get(serverName)
+            if server and server.connected and server.running:
+                server.sendRequest(dev.name, requestId, value)
+                LOG.info(u'sent "%s" %s', dev.name, action.deviceAction)
+            else:
+                LOG.error(u'Plugin.actionControlDevice: server "%s" not '
+                          u'running; "%s" %s request ignored', serverName,
+                          dev.name, action.deviceAction)
         else:
-            LOG.error(u'Plugin.actionControlDevice: server "%s" not running; '
-                      u'"%s" %s request ignored', serverName, dev.name, action)
+            LOG.warning(u'Plugin.actionControlDevice: invalid action %s '
+                        u'requested for device "%s"; request ignored',
+                        action.deviceAction, dev.name)
 
     def actionControlUniversal(self, action, dev):
         LOG.threaddebug(u'Plugin.actionControlUniversal called "%s"', dev.name)
